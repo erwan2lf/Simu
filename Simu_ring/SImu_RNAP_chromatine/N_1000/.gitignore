@@ -1,0 +1,78 @@
+# === SYSTEM FILES ===
+.DS_Store
+*.swp
+*.log
+*.out
+*.err
+
+# === COMPILATION OUTPUTS ===
+main
+main1
+test
+*.o
+*.so
+*.a
+*.dSYM/
+*.exe
+*.out
+
+# === PYTHON (analyses, scripts, notebooks) ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.ipynb_checkpoints/
+
+# === SIMULATION OUTPUTS ===
+# Brownian / LJ trajectories
+*.lammpstrj
+*.xyz
+*.dump
+*.dat
+
+# Temporary or generated data
+*.txt
+*.csv
+*.npy
+*.npz
+*.pkl
+*.h5
+
+# Output folders
+MSD/
+GYRATION_RADIUS/
+CENTRE_DE_MASSE/
+VITESSE_CENTRE_DE_MASSE/
+plots_*/
+Results/
+Outputs/
+tmp/
+logs/
+
+# === CONFIG & RUN SCRIPTS ===
+run_simu.sh
+run_simu_perso.sh
+param.txt
+
+# === BACKUP & TEST ===
+test_main.c
+test*.txt
+ERREUR.txt
+voisin.txt
+rnap.txt
+force*.txt
+endtoend*.txt
+correl_segment.txt
+autocorrelation_data*.txt
+R_centre_de_masse.txt
+nom_R_centre_de_masse.txt
+
+# === INCLUDE / HEADERS GENERATED ===
+include/
+
+# === MISC ===
+*.bak
+*.old
+*.tmp
+*.tar.gz
+*.zip

@@ -1,0 +1,42 @@
+# === Fichiers temporaires et exécutables ===
+*.o
+*.out
+*.dSYM/
+main
+main1
+test
+a.out
+
+# === Résultats de simulation ===
+*.lammpstrj
+*.txt
+*.dat
+*.npy
+*.npz
+*.csv
+*.png
+*.pdf
+*.mp4
+*.gif
+
+# === Répertoires de résultats ===
+MSD/
+GYRATION_RADIUS/
+CENTRE_DE_MASSE/
+VITESSE_CENTRE_DE_MASSE/
+Resultats/
+Simulations/
+
+# === Python notebooks ou logs ===
+*.ipynb
+*.log
+
+# === macOS system files ===
+.DS_Store
+
+# === Sauvegardes temporaires ===
+*.bak
+*~
+# === Autoriser scripts mais ignorer leurs sorties ===
+!*.py
+!*.sh

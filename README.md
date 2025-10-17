@@ -7,3 +7,20 @@ Ce dépôt regroupe deux versions du code de simulation :
 ---
 
 ## 📁 Structure du dépôt
+
+Simu/
+├── Simu_ring/
+│   └── SImu_RNAP_chromatine/
+│        └── N_1000/
+│            ├── main_RNAP.c
+│            ├── simulation.c
+│            └── …
+│
+├── Simu_bead/
+│   └── Bead_10/
+│        └── N_1000/
+│            ├── main_RNAP.c
+│            ├── potentiels.c
+│            └── …
+│
+└── .gitignore

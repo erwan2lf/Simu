@@ -105,7 +105,14 @@ Config parse_config(int argc, char *argv[])
     print_header("Durées et périodicitéss");
 
     int N_rec = 1000; 
-    cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (cfg.nb_rnap_initial)) / (cfg.vitesse_rnap * cfg.Delta) );
+    if(cfg.nb_rnap_initial == 0)
+    {
+        cfg.T = 2200000;
+    }
+    else
+    {
+        cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (cfg.nb_rnap_initial)) / (cfg.vitesse_rnap * cfg.Delta) );
+    }
     printf("T0 = %d\n", cfg.T);
     cfg.T = cfg.T + cfg.T/10;
     printf("T1 = %d\n", cfg.T);

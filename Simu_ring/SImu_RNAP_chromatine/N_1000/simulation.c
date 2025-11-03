@@ -497,164 +497,187 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
 
 
-void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap, int t_start){
+void calcul(SimVars *sv, const Config *cfg, const Files *f,
+             NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap,
+             int t_start)
+{
+    clock_t start_2, end_2;
+    clock_t start, end;
+    double duree_boucle, duree_tot = 0, temps_restant;
 
-    clock_t start_2, end_2; 
-    clock_t start, end;double duree_boucle, duree_tot = 0, temps_restant;
+    struct timespec chrono_start, last, now;
+    double interval = 60.0; // affichage de progression toutes les 60 s
+    double checkpoint_limit_h = 0.01; // 47h30min
+    double checkpoint_limit_s = checkpoint_limit_h * 3600.0;
 
-    struct timespec last, now;
-    double interval = 60; // en secondes
-
+    // --- Initialisation du timer global ---
+    clock_gettime(CLOCK_MONOTONIC, &chrono_start);
     clock_gettime(CLOCK_MONOTONIC, &last);
 
-    int time_depart;
-    if(t_start != 0)
-    {
-        time_depart = t_start;
-    }
-    else
-    {
-        time_depart = 0;
-    }
-    for (int t = time_depart; t < cfg->T; t++){
-        // if(sv->nb_rnap==cfg->nb_rnap_initial){break;}
-        // if(t==1000){break;}
+    int time_depart = (t_start != 0) ? t_start : 0;
+    printf("▶️  Simulation lancée à t=%d avec limite de %.1f h (%.0f s)\n",
+           time_depart, checkpoint_limit_h, checkpoint_limit_s);
 
-        clock_gettime(CLOCK_MONOTONIC, &now); 
-        double elapsed = now.tv_sec - last.tv_sec + (now.tv_nsec - last.tv_nsec)*1e-9; 
+    for (int t = time_depart; t < cfg->T; t++) {
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        double elapsed = (now.tv_sec - last.tv_sec) +
+                         (now.tv_nsec - last.tv_nsec) * 1e-9;
 
-        if (elapsed >= interval){
-            printf("Itération %d  (après %.1f s)\n", t, elapsed);
+        // Affichage de progression périodique
+        if (elapsed >= interval) {
+            double total_elapsed =
+                (now.tv_sec - chrono_start.tv_sec) +
+                (now.tv_nsec - chrono_start.tv_nsec) * 1e-9;
+            printf("Itération %d (%.1f s depuis début)\n", t, total_elapsed);
+            fflush(stdout);
             last = now;
-
         }
 
-       // =====================================================================
-        // 🧩 Conditions d’ajout d’une nouvelle RNAP
-        // =====================================================================
-        
-        if (cfg->nb_rnap_initial > 0) {
+        // -----------------------------------------------------------------
+        // ⏱️ Vérification de la durée totale → sauvegarde avant limite SLURM
+        // -----------------------------------------------------------------
+        double total_elapsed =
+            (now.tv_sec - chrono_start.tv_sec) +
+            (now.tv_nsec - chrono_start.tv_nsec) * 1e-9;
 
-            // Trouver l’indice de la dernière RNAP active
+        if (total_elapsed >= checkpoint_limit_s) {
+            printf("\n💾 Limite de %.1f h atteinte (%.2f h écoulées)\n",
+                   checkpoint_limit_h, total_elapsed / 3600.0);
+            printf("   → Sauvegarde automatique du checkpoint et arrêt propre.\n");
+
+            char checkpoint_name[256];
+            snprintf(checkpoint_name, sizeof(checkpoint_name),
+                     "checkpoint_t%d.dat", t);
+
+            save_checkpoint(sv, cfg, checkpoint_name);
+
+            printf("✅ Checkpoint enregistré sous %s\n", checkpoint_name);
+            fflush(stdout);
+            exit(0);
+        }
+
+        // -----------------------------------------------------------------
+        //  🧩 Code de simulation existant
+        // -----------------------------------------------------------------
+
+        // Ajout conditionnel des RNAP
+        if (cfg->nb_rnap_initial > 0) {
             int last_active = -1;
-            for (int i = MAX_RNAP - 1; i >= 0; i--)
-            {
-                if (sv->l_rnap[i] == 1) 
-                {   // active sur la chaîne
+            for (int i = MAX_RNAP - 1; i >= 0; i--) {
+                if (sv->l_rnap[i] == 1) {
                     last_active = i;
-                    // printf("last_active = %d \n", last_active);
                     break;
                 }
             }
 
-            // Si aucune RNAP n’est encore sur la chaîne, on peut en ajouter une
-            // printf("last_active = %d \n ", last_active);
-            // printf("nb_rnap = %d et nb_rnap_intial = %d \n ", sv->nb_rnap, cfg->nb_rnap_initial);
-            if (last_active == -1 && sv->nb_rnap < cfg->nb_rnap_initial)
-            {
+            if (last_active == -1 && sv->nb_rnap < cfg->nb_rnap_initial) {
                 ajouter_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, t);
-            }
-            else if (last_active >= 0)
-            {
-                // Condition de distance : la dernière RNAP doit être avancée d’au moins 3 billes
+            } else if (last_active >= 0) {
                 int pos = sv->positions_bille_rnap[last_active];
-                // printf("pos = %d \n",pos);
-                if (pos >= cfg->debut_segment + 3 && sv->nb_rnap < cfg->nb_rnap_initial)
-                {
-                    // Vérifie s’il reste une RNAP disponible non utilisée et non sortie (-2)
+                if (pos >= cfg->debut_segment + 3 &&
+                    sv->nb_rnap < cfg->nb_rnap_initial) {
                     int has_available = 0;
-                    for (int i = 0; i < cfg->nb_rnap_initial; i++)
-                    {
-                        if (sv->l_rnap[i] == -1)  // libre, jamais utilisée
-                        {  
+                    for (int i = 0; i < cfg->nb_rnap_initial; i++) {
+                        if (sv->l_rnap[i] == -1) {
                             has_available = 1;
                             break;
                         }
                     }
-                    if (has_available)
-                    {
-                        ajouter_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, t);
-                        for (int i = 0; i < cfg->nb_rnap_initial; i++)
-                        {
-                            printf("Ajout : l_rnap[%d]=%d\n",i,sv->l_rnap[i]);
-                        }
+                    if (has_available) {
+                        ajouter_rnap(sv, cfg, neighbor_lists,
+                                     &neighbor_lists_rnap, t);
                     }
                 }
             }
-            
         }
+
         start = clock();
 
-        if (t%1000==0)
-        {
+        if (t % 1000 == 0) {
             build_neighbor_list(sv->R, neighbor_lists, cfg->N, 2, 0);
-            if(cfg->nb_rnap_initial > 0)
-            {
-                build_neighbor_list_rnap_chrom(sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap, cfg->rayon_ecrantage_LJ_chrom, t);
+            if (cfg->nb_rnap_initial > 0) {
+                build_neighbor_list_rnap_chrom(
+                    sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
+                    cfg->rayon_ecrantage_LJ_chrom, t);
             }
-            for(int i = 0; i < cfg->N; i++)
-            {
-                fprintf(f->fichier_voisin,"%d ",neighbor_lists[i].count);
+            for (int i = 0; i < cfg->N; i++) {
+                fprintf(f->fichier_voisin, "%d ", neighbor_lists[i].count);
             }
             fprintf(f->fichier_voisin, "\n");
         }
 
-        polymere_brownian_motion(sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces, cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc, cfg->T, f->fichier_force, cfg->periode_force, f->fichier_force_thermique, cfg->temperature);
-    //     //update_link_vectors(R, t_link, N);
-    //     //f_bending_forces(R, t_link, bending_forces, K_bend, N, t);
+        polymere_brownian_motion(
+            sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
+            cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
+            cfg->T, f->fichier_force, cfg->periode_force,
+            f->fichier_force_thermique, cfg->temperature);
 
-    //     if(cfg->nb_rnap_initial > 0) {matrix_rnap_0(sv->R_rnap_new, sv->nb_rnap, cfg->rnap_subunits);}// Remplis une matrice 3D de 0
-
-    //     /////////// Boucle sur les RNAPS /////////////
-        if(cfg->nb_rnap_initial > 0)
-        {
-            for(int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++)
-            {
-                // printf("l_rnap[%d]=%d \n",rnap, sv->l_rnap[rnap]);
-                if(sv->l_rnap[rnap]<0){continue;}
+        if (cfg->nb_rnap_initial > 0) {
+            for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
+                if (sv->l_rnap[rnap] < 0)
+                    continue;
                 int prout = 0;
-                polymere_brownian_motion_ring_force(sv->R_rnap[rnap], cfg->alpha, 1 * cfg->K_rnap, cfg->Delta, cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force, f->fichier_force_rnap, f->fichier_force_thermique, cfg->temperature);
-                
-                liaison_sup(3*cfg->a_transpt, 2*cfg->K_rnap, cfg->Delta, sv->R_rnap[rnap], 0, 4, f->fichier_force_rnap_2, t, cfg->periode_force); // Liaison entre les monomères opposés
-                liaison_sup(3*cfg->a_transpt, 2*cfg->K_rnap, cfg->Delta, sv->R_rnap[rnap], 2, 6, f->fichier_force_rnap_2, t, cfg->periode_force); // Liaison entre les monomères opposés
-                liaison_sup(3*cfg->a_transpt, 2*cfg->K_rnap, cfg->Delta, sv->R_rnap[rnap], 1, 5, f->fichier_force_rnap_2, t, cfg->periode_force); // Liaison entre les monomères opposés
-                liaison_sup(3*cfg->a_transpt, 2*cfg->K_rnap, cfg->Delta, sv->R_rnap[rnap], 3, 7, f->fichier_force_rnap_2, t, cfg->periode_force); // Liaison entre les monomères opposés
-                
+                polymere_brownian_motion_ring_force(
+                    sv->R_rnap[rnap], cfg->alpha, cfg->K_rnap, cfg->Delta,
+                    cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
+                    f->fichier_force_rnap, f->fichier_force_thermique,
+                    cfg->temperature);
+                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                            sv->R_rnap[rnap], 0, 4, f->fichier_force_rnap_2, t,
+                            cfg->periode_force);
+                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                            sv->R_rnap[rnap], 2, 6, f->fichier_force_rnap_2, t,
+                            cfg->periode_force);
+                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                            sv->R_rnap[rnap], 1, 5, f->fichier_force_rnap_2, t,
+                            cfg->periode_force);
+                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                            sv->R_rnap[rnap], 3, 7, f->fichier_force_rnap_2, t,
+                            cfg->periode_force);
                 sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;
-                // printf("avancement_transcription[%d]=%lf\n",rnap,sv->avancement_transcription[rnap]);
-                bond_rnap_bead_progressive_mvt(sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt, cfg->Delta, sv->positions_bille_rnap[rnap], sv->avancement_transcription[rnap], cfg->a, cfg->alpha, f->fichier_force_lea, cfg->periode_force, t);
-                // copy_matrix(sv->R_rnap[rnap], sv->R_rnap_new[rnap],cfg->rnap_subunits);
-
-                if(1-sv->avancement_transcription[rnap]<0.0000001)
-                {
-                    retirer_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, rnap, prout, t);
-                    // printf("pos[%d]=%d\n",rnap, sv->positions_bille_rnap[rnap]);
-                }  
+                bond_rnap_bead_progressive_mvt(
+                    sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
+                    cfg->Delta, sv->positions_bille_rnap[rnap],
+                    sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
+                    f->fichier_force_lea, cfg->periode_force, t);
+                if (1 - sv->avancement_transcription[rnap] < 1e-7) {
+                    retirer_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap,
+                                 rnap, prout, t);
+                }
             }
         }
-        
-    lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon, cfg->sigma6, cfg->sigma12, cfg->Delta, cfg->attache, cfg->periode_force, f->fichier_force_LJ, t);
-    lennard_jones_forces_rnap(sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap, cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap, cfg->sigma6_rnap2, cfg->sigma12_rnap2, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T, f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
-    lennard_jones_forces_rnap_rnap(sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap, cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, sv->l_rnap);
-    compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new, sv->compteur_grand_deplacement);
 
+        lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
+                             cfg->sigma6, cfg->sigma12, cfg->Delta,
+                             cfg->attache, cfg->periode_force,
+                             f->fichier_force_LJ, t);
+        lennard_jones_forces_rnap(
+            sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
+            cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
+            cfg->sigma6_rnap2, cfg->sigma12_rnap2,
+            cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
+            f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
+        lennard_jones_forces_rnap_rnap(
+            sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
+            cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
+            sv->l_rnap);
+        compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new,
+                                     sv->compteur_grand_deplacement);
 
-    //     if(cfg->confinement == 1){
-    //         confinement_sphere(sv->R, cfg->N, cfg->r_sphere);
-    //     }
+        enregistrement_data(sv, cfg, f, t);
 
-       enregistrement_data(sv, cfg, f, t);
+        end = clock();
+        duree_boucle = (double)(end - start) / CLOCKS_PER_SEC;
+        duree_tot += duree_boucle;
 
-        end = clock();  
-        duree_boucle = (double)(end - start)/CLOCKS_PER_SEC;
-        duree_tot += duree_boucle ;
-
-        if (t%(cfg->T/10) == 0){
-            Mesures mesures = calcul_mesures (sv->R, cfg->N);
+        if (t % (cfg->T / 10) == 0) {
+            Mesures mesures = calcul_mesures(sv->R, cfg->N);
             double duree_min = (int)(duree_tot / 60);
             double duree_sec = duree_tot - (duree_min * 60);
-            temps_restant = duree_boucle * (cfg->T-t-1) / 60;
-            printf("%d/%.d %.f:%.f %.2fmin std %.10f moy %.10f \n",t, cfg->T, duree_min, duree_sec, temps_restant, mesures.std, mesures.moyenne);   
+            temps_restant = duree_boucle * (cfg->T - t - 1) / 60;
+            printf("%d/%d %.f:%.f %.2fmin std %.10f moy %.10f\n", t, cfg->T,
+                   duree_min, duree_sec, temps_restant, mesures.std,
+                   mesures.moyenne);
         }
     }
 }

@@ -27,15 +27,16 @@ int main(int argc, char*argv[])
 {
     print_banner();
 
-    fflush(stdout); 
-
+    setvbuf(stdout, NULL, _IONBF, 0); 
+    static SimVars sv; 
+    static Files f; 
+    fflush(stdout);
     Config cfg = parse_config(argc, argv);
 
     init_genrand(cfg.seed);
     printf("Premier nombre aléatoire : %.10f\n",genrand_real2());
 
-    SimVars sv = {0}; 
-    Files f = {0};
+
     init_sim_vars(&sv, &cfg);
     open_simulation_files(&cfg, &f);
 

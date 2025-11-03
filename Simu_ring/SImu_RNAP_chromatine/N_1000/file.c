@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MAX_RNAP 50
+#define RNAP_SUBUNITS 8 
+#define DIM 3
+
 /**
  * 📂 open_simulation_files
  * --------------------------------------------------------------------------------------------------
@@ -173,4 +177,62 @@ void close_simulation_files(const Config *cfg, Files *f){
     fclose(f->fichier_voisin);
     fclose(f->fichier_correl_segment);
     
+}
+
+
+void save_checkpoint(const SimVars *sv, const Config *cfg, int t)
+{
+    unsigned long state[624];
+    int index;
+    get_mt_state(state, &index); // récupère l'état du RNG
+
+    char current[256], backup[256];
+    snprintf(current, sizeof(current), "./Resultats/checkpoint_last.dat");
+    snprintf(backup, sizeof(backup), "./Resultats/checkpoint_prev.dat");
+
+    // Renomme le précédent pour le garder en backup
+    rename(current, backup);
+
+    FILE *f = fopen(current, "wb");
+    if (!f) {
+        fprintf(stderr, "❌ Erreur : impossible d'ouvrir %s pour écriture\n", current);
+        return;
+    }
+
+    fwrite(&t, sizeof(int), 1, f);
+    fwrite(&sv->nb_rnap, sizeof(int), 1, f);
+    fwrite(sv->R, sizeof(double), 3 * cfg->N, f);
+    fwrite(sv->R_rnap, sizeof(double), MAX_RNAP * RNAP_SUBUNITS * 3, f);
+    fwrite(state, sizeof(state), 1, f);
+    fwrite(&index, sizeof(int), 1, f);
+    fclose(f);
+
+    printf("💾 Checkpoint sauvegardé à t = %d\n", t);
+    fflush(stdout);
+}
+
+int load_checkpoint(SimVars *sv, Config *cfg, int *t_start)
+{
+    unsigned long state[624];
+    int index;
+
+    FILE *f = fopen("./Resultats/checkpoint_last.dat", "rb");
+    if (!f) {
+        printf("🚀 Aucun checkpoint trouvé, démarrage neuf\n");
+        return 0;
+    }
+
+    fread(t_start, sizeof(int), 1, f);
+    fread(&sv->nb_rnap, sizeof(int), 1, f);
+    fread(sv->R, sizeof(double), 3 * cfg->N, f);
+    fread(sv->R_rnap, sizeof(double), MAX_RNAP * RNAP_SUBUNITS * 3, f);
+    fread(state, sizeof(state), 1, f);
+    fread(&index, sizeof(int), 1, f);
+    fclose(f);
+
+    set_mt_state(state, index);
+
+    printf("✅ Checkpoint chargé (t = %d)\n", *t_start);
+    fflush(stdout);
+    return 1;
 }

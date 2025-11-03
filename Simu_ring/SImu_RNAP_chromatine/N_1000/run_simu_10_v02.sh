@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=simu_R1_n20_full
+#SBATCH --job-name=simu_R1_v0.05
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=50          # Nombre de cœurs OpenMP disponibles
@@ -78,7 +78,7 @@ mkdir -p "$parent_folder"
 # Paramètres de simulation
 # ======================
 nb_rnap_values=(10)
-vitesse_rnap_values=(0.1)
+vitesse_rnap_values=(0.2)
 Ktranspt_values=(2)
 seeds=({1..50})
 

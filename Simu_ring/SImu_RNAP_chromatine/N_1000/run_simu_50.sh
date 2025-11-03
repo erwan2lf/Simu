@@ -2,7 +2,7 @@
 #SBATCH --job-name=simu_R1_n20_full
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=25          # Nombre de cœurs OpenMP disponibles
+#SBATCH --cpus-per-task=50          # Nombre de cœurs OpenMP disponibles
 #SBATCH --mem=5G
 #SBATCH -t 48:00:00
 #SBATCH -p amd32
@@ -25,7 +25,9 @@ echo "📦 Compilation du code..."
 #     -Wno-unused-result \
 #     -Wno-comment
 
-gcc- -g -O3 -ffast-math \
+
+
+  gcc -g -O3 -ffast-math \
     main_RNAP.c \
     basic_functions.c \
     simulation.c \
@@ -36,7 +38,6 @@ gcc- -g -O3 -ffast-math \
     potentiels.c \
     structures_depart.c \
     transcription_erwan.c \
-    /Users/erwan/Documents/These/MTwister/mt19937ar.c \
     -Iinclude -lm -o \
     main \
     -lm -fopenmp \
@@ -48,8 +49,9 @@ gcc- -g -O3 -ffast-math \
     -Wno-unused-result \
     -Wno-comment
 
+
 echo "✅ Compilation OK"
-chmod +x main1
+chmod +x main
 
 # Threads OpenMP = cœurs SLURM
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
@@ -61,12 +63,12 @@ else
   # Fallback : 1 si info indisponible
   MAX_PARALLEL=1
 fi
-
+MAX_PARALLEL=50
 echo "🖥️  Cœurs SLURM (OMP_NUM_THREADS) : $OMP_NUM_THREADS"
 echo "⚙️  Jobs en parallèle (bg)        : $MAX_PARALLEL"
 
 # Chemin absolu de l'exécutable
-main1_path="$SLURM_SUBMIT_DIR/main1"
+main_path="$SLURM_SUBMIT_DIR/main"
 
 # Répertoire de base pour les résultats
 parent_folder="$SLURM_SUBMIT_DIR/Simulations"
@@ -78,7 +80,7 @@ mkdir -p "$parent_folder"
 nb_rnap_values=(50)
 vitesse_rnap_values=(0.1)
 Ktranspt_values=(2)
-seeds=(1 2 3 4 5)
+seeds=({1..50})
 
 running=0
 
@@ -103,7 +105,7 @@ for nb_rnap in "${nb_rnap_values[@]}"; do
           (
             cd "$seed_folder"
             # Passage des 4 arguments : nb_rnap vitesse Ktranspt seed
-            "$main1_path" "$nb_rnap" "$vitesse_rnap" "$Ktranspt" "$seed" > output.txt 2> error.txt
+            "$main_path" "$nb_rnap" "$vitesse_rnap" "$Ktranspt" "$seed" > output.txt 2> error.txt
           ) &
 
           ((running++))
@@ -123,7 +125,7 @@ for nb_rnap in "${nb_rnap_values[@]}"; do
       echo "▶ Simulation : nb_rnap=0 | vitesse=0 | Ktranspt=0 | seed=$seed"
       (
         cd "$seed_folder"
-        "$main1_path" 0 0 0 "$seed" > output.txt 2> error.txt
+        "$main_path" 0 0 0 "$seed" > output.txt 2> error.txt
       ) &
 
       ((running++))

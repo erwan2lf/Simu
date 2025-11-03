@@ -9,7 +9,13 @@ Config parse_config(int argc, char *argv[])
 {
     Config cfg; 
 
-    // Lecture des arguments (définis dans .bash)
+    
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////// Lecture des arguments (définis dans .bash) ////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     if (argc < 5)
     {
         fprintf(stderr, "Usage : %s nb_rnap vitesse_rnap seed\n", argv[0]); // Vérification du bon nombre d'arguments
@@ -18,12 +24,22 @@ Config parse_config(int argc, char *argv[])
 
     cfg.nb_rnap_initial = atoi(argv[1]);
     cfg.vitesse_rnap    = atof(argv[2]); 
-    cfg.K_transpt = atof(argv[3]); 
+    cfg.K_transpt       = atof(argv[3]); 
     cfg.seed            = strtoul(argv[4], NULL, 10); 
-    
+
+    print_header("Lecture des arguments (définis dans .bash)");
+
+    printf("Nombre de RNAP : %d \n", cfg.nb_rnap_initial);
+    printf("Vitesse des RNAP en a/Tau_0 : %d \n", cfg.vitesse_rnap);
+    printf("Constant de raideur RNAP - chromatine : %d \n", cfg.K_transpt);
+    printf("Seed  : %d \n", cfg.seed);
 
     
-    // Paramètres par défaut
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////            Paramètres par défaut           ////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     cfg.nbr_total_simu  = 1; 
     cfg.N               = 1000;
@@ -31,7 +47,6 @@ Config parse_config(int argc, char *argv[])
     cfg.alpha           = 1.0;
     cfg.K               = 1000.0;
     cfg.K_rnap          = 1000.0;
-    // cfg.K_transpt       = 1000.0;
     cfg.K_bend          = 0.0;
     cfg.Delta           = 1e-4;
     cfg.epsilon         = 0.0024;
@@ -45,11 +60,35 @@ Config parse_config(int argc, char *argv[])
     cfg.rayon_ecrantage_LJ_chrom = 2.0;
     cfg.rayon_ecrantage_LJ_rnap  = 2.0;
     cfg.ecart_train     = 2;
-    cfg.attente_train   = 100000;
-    cfg.Nm = cfg.N;
     cfg.r_sphere = 0;
 
-    // Options fixes 
+    print_header("Paramètres par défaut");
+
+
+    printf("Nombre de monomères : %d\n", cfg.N);
+    printf("Taille des monomères : %lf\n", cfg.a);
+    printf("Taille des RNAP (en unité de a) : %lf\n", cfg.alpha); 
+    printf("Constante de raideur de la chromatine : %lf\n", cfg.K);
+    printf("Constante de raideur RNAP-RNAP : %lf\n", cfg.K_rnap);
+    printf("Module de courbure: %lf\n", cfg.K_bend);
+    printf("Pas de temps : %lf ", cfg.Delta);
+    printf("Intensité de LJ chromatine-chromatine : %lf\n",cfg.epsilon);
+    printf("Intensité de LJ RNAP-RNAP : %lf\n",cfg.epsilon_rnap);
+    printf("Sigma LJ (en unitté de a) : %lf\n", cfg.sigma); 
+    printf("Début du segment transcrit : %d \n", cfg.debut_segment); 
+    printf("Fin du segment transcrit : %d \n", cfg.debut_segment); 
+    printf("Nombre de sous unités par RNAP : %d\n", cfg.rnap_subunits); 
+    printf("Rayon écrantage LJ chromatine-chromatine : %lf \n", cfg.rayon_ecrantage_LJ_chrom);
+    printf("Rayon écrantage LJ RNAP-RNAO : %lf \n", cfg.rayon_ecrantage_LJ_rnap);
+    printf("Nombre de billes entre deux RNAP : %d\n", cfg.ecart_train);
+    printf("Taille de la sphère de confinement (si 0 pas de confinement) : %d\n",cfg.r_sphere);
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////               Options fixes                ////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     cfg.attache = 0; // attache
     cfg.confinement = 0; // confinement
     cfg.plan = 0; // plan
@@ -58,11 +97,14 @@ Config parse_config(int argc, char *argv[])
     cfg.temperature = 1; // temperature
     cfg.equilibriate = 1; // Mise a l'équilibre du système avant calcul
 
-    // 3.4. Durées et périodicités
-    // cfg.T      = 1e7;
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////           Durées et périodicitéss           ///////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    int N_rec = 10000; 
+    print_header("Durées et périodicitéss");
+
+    int N_rec = 1000; 
     cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (cfg.nb_rnap_initial)) / (cfg.vitesse_rnap * cfg.Delta) );
     printf("T0 = %d\n", cfg.T);
     cfg.T = cfg.T + cfg.T/10;
@@ -144,4 +186,76 @@ Config parse_config(int argc, char *argv[])
 
     return cfg;
 
+}
+
+// === Codes de couleur ANSI ===
+#define C_RESET   "\033[0m"
+#define C_CYAN    "\033[36m"
+#define C_YELLOW  "\033[1;33m"
+#define C_BOLD    "\033[1m"
+
+// === Fonction d’affichage ===
+void print_header(const char *title)
+{
+    const int total_width = 180;   // largeur totale de la ligne
+    const int inner_padding = 4;   // espaces autour du titre
+    const char border_char = '/';  // caractère des bordures
+
+    int title_len = strlen(title);
+    int total_inner = title_len + 2 * inner_padding;
+
+    // Si le titre est trop long pour rentrer dans la largeur
+    if (total_inner >= total_width - 4) {
+        printf(C_CYAN "%c%c %s %c%c\n" C_RESET,
+               border_char, border_char, title, border_char, border_char);
+        return;
+    }
+
+    int side_width = (total_width - total_inner) / 2;
+
+    // Ligne supérieure
+    printf(C_CYAN);
+    for (int i = 0; i < total_width; i++) putchar(border_char);
+    printf(C_RESET "\n");
+
+    // Ligne du milieu avec titre centré et coloré
+    printf(C_CYAN);
+    for (int i = 0; i < side_width; i++) putchar(border_char);
+    printf(C_RESET);
+
+    printf(C_YELLOW "%*s%s%*s" C_RESET, inner_padding, "", title, inner_padding, "");
+
+    printf(C_CYAN);
+    for (int i = 0; i < side_width; i++) putchar(border_char);
+    printf(C_RESET "\n");
+
+    // Ligne inférieure
+    printf(C_CYAN);
+    for (int i = 0; i < total_width; i++) putchar(border_char);
+    printf(C_RESET "\n");
+}
+
+#define C_RESET   "\033[0m"
+#define C_BOLD    "\033[1m"
+#define C_BLUE    "\033[38;5;39m"
+#define C_CYAN    "\033[36m"
+#define C_YELLOW  "\033[1;33m"
+#define C_WHITE   "\033[97m"
+#define C_GRAY    "\033[90m"
+
+void print_banner(void) {
+    printf("\n");
+    printf(C_CYAN "//////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+    printf(C_CYAN "////" C_RESET C_BOLD C_YELLOW "       Modeling of RNA Polymerase II Driven Chromatin Dynamics Simulation Code      " C_RESET C_CYAN "////\n");
+    printf(C_CYAN "//////////////////////////////////////////////////////////////////////////////////////////////////////////\n" C_RESET);
+
+    printf(C_WHITE "\n");
+    printf("  📘 " C_BOLD "Code développé au " C_BLUE "Laboratoire de Physique Théorique (LPT - CNRS, Toulouse)" C_RESET "\n");
+    printf("  👨‍🔬 " C_BOLD "Auteur : " C_YELLOW "Erwan Le Floch" C_RESET "\n");
+    printf("  🧬 " C_BOLD "Projet de thèse : " C_WHITE "\"Modeling of RNA Polymerase II Driven Chromatin Dynamics\"" C_RESET "\n");
+    printf("  🗓️  " C_BOLD "Dernière mise à jour : " C_GRAY __DATE__ " - " __TIME__ C_RESET "\n");
+    printf("  ⚙️  " C_BOLD "Compilateur : " C_GRAY "gcc / g++ avec OpenMP et optimisations HPC" C_RESET "\n");
+    printf("  🧩 " C_BOLD "Simulation : " C_WHITE "Chromatin polymer + RNAP motor complex (coarse-grained BD)" C_RESET "\n");
+
+    printf("\n" C_CYAN "//////////////////////////////////////////////////////////////////////////////////////////////////////////" C_RESET "\n\n");
 }

@@ -67,6 +67,7 @@ void ecarter_deux_particules(double* vec1, double* vec2, double ecart_particule)
 void creation_1_rnap_erwan(double** R, int nb_rnap, int* positions_bille_rnap, double*** R_rnap, int N, int rnap_subunits, int debut_segment, int fin_segment, int nb_rnap_initial);
 void creation_grosse_bille(double** R, int nb_rnap, int* positions_bille_rnap, double*** R_rnap, int N, int debut_segment, int fin_segment, int nb_rnap_initial);
 // void creation_RNAP_erwan(double** R, int nb_rnap, int* positions_bille_rnap, double*** R_rnap, int N, int promoteur, int rnap_subunits, int debut_segment, int fin_segment);
+void lennard_jones_forces_rnap_rnap(double ***R_rnap, int nb_rnap, double epsilon, double sigma6, double sigma12, double cut_rnap2, double Delta);
 
 
 #endif // MES_FONCTIONS_H

@@ -6,8 +6,13 @@
 #include <unistd.h>
 #include <time.h>
 #include "potentiels.h"
-// #include </Users/erwan/Documents/These/MTwister/mt19937ar.h>
-#include </home/elefloch/Simulation/MT/mt19937ar.c>
+
+#ifdef CLUSTER
+    #include </home/elefloch/Simulation/MT/mt19937ar.h>
+#else
+    #include </Users/erwan/Documents/These/MTwister/mt19937ar.h>
+#endif
+
 #include <string.h>
 #include <sys/stat.h> // Pour mkdir()
 #include <errno.h> 

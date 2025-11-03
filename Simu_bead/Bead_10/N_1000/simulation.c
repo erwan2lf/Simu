@@ -759,6 +759,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
         
         lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon, cfg->sigma6, cfg->sigma12, cfg->Delta, cfg->attache, cfg->periode_force, f->fichier_force_LJ, t);
         lennard_jones_forces_rnap(sv->R_rnap, sv->nb_rnap, cfg->rnap_subunits, sv->R, cfg->N, neighbor_lists_rnap, cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap, cfg->sigma6_rnap2, cfg->sigma12_rnap2, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T, f->fichier_force_rnap_LJ, cfg->periode_force);
+        lennard_jones_forces_rnap_rnap(sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap, cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta);
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new, sv->compteur_grand_deplacement);
 
 

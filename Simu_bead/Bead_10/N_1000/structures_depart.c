@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define M_PI 3.14159265
+#define PI 3.14159265
 
 // Fonction pour créer un polymère
 double** creation_polymere(int N, double a, double ecart) {
@@ -105,8 +105,8 @@ double** recuperer_derniere_structure(const char* nom_fichier, int N) {
 void creation_polymere_solenoide(int N, double a, double ecart, double epaisseur, double** R) {
     double distance_bout_a_bout = 30*20;// 30billes de taille 20
     double i_pas = distance_bout_a_bout/N ;
-    double th = 2 * M_PI / 300.0; // 10 points sur le cercle
-    double theta = 3 * M_PI / 2.0;
+    double th = 2 * PI / 300.0; // 10 points sur le cercle
+    double theta = 3 * PI / 2.0;
     double rayon = a / 2.0 / sin(th / 2.0);
     for (int i = 0; i < N; ++i) {
         R[i][0] = i * i_pas + ecart;

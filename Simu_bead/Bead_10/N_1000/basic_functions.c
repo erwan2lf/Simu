@@ -6,13 +6,18 @@
 #include <unistd.h>
 #include <time.h>
 #include "potentiels.h"
-// #include </Users/erwan/Documents/These/MTwister/mt19937ar.h>
-#include </home/elefloch/Simulation/MT/mt19937ar.h>
+
+#ifdef CLUSTER
+    #include </home/elefloch/Simulation/MT/mt19937ar.h>
+#else
+    #include </Users/erwan/Documents/These/MTwister/mt19937ar.h>
+#endif
+   
 #include <string.h>
 #include <sys/stat.h> // Pour mkdir()
 #include <errno.h> 
 #define FILENAME_SIZE 100
-#define M_PI 3.14159265
+#define PI 3.14159265
 
 double randn() {
     //unsigned long seed=97714454678; init_genrand(seed);
@@ -821,8 +826,8 @@ void creation_polymere_aleatoire(int N, double a, double **R){
     R[0][1]= genrand_real2() * 100;
     R[0][2]= genrand_real2() * 100;
     for(int i = 1; i < N; i++){
-        double phi = genrand_real2() * 2 * M_PI;
-        double theta = genrand_real2() * M_PI;
+        double phi = genrand_real2() * 2 * PI;
+        double theta = genrand_real2() * PI;
         R[i][0] = R[i-1][0] + a * sin(theta) * cos(phi);
         R[i][1] = R[i-1][1] + a * sin(theta) * sin(phi);
         R[i][2] = R[i-1][2] + a * cos(theta);

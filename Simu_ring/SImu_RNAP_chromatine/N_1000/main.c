@@ -1,0 +1,94 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <omp.h>
+#include <time.h>
+#include "include/config.h"
+#include "include/simulation.h"
+#include "transcription.h"
+#include "file.h"
+
+
+#define MAX_RNAP 50
+#define RNAP_SUBUNITS 8 
+#define DIM 3
+
+#ifdef CLUSTER
+    #include </home/elefloch/Simulation/MT/mt19937ar.h>
+#else
+    #include </Users/erwan/Documents/These/MTwister/mt19937ar.h>
+#endif
+
+double timespec_to_sec(struct timespec t) {
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+
+int main(int argc, char*argv[])
+{
+    print_banner();
+
+    fflush(stdout); 
+
+    Config cfg = parse_config(argc, argv);
+
+    init_genrand(cfg.seed);
+    printf("Premier nombre aléatoire : %.10f\n",genrand_real2());
+
+    SimVars sv = {0}; 
+    Files f = {0};
+    init_sim_vars(&sv, &cfg);
+    open_simulation_files(&cfg, &f);
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////              Création chromatine           ////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    // creation_polymere_droit(cfg.N, cfg.a, cfg.ecart_train, sv.R);
+    // creation_polymere_aleatoire(cfg.N, cfg.a, sv.R);
+    // creation_fractal_globule(N, a, ecart, R);
+
+    
+    char file_path[512];
+    
+    #ifdef CLUSTER
+        snprintf(
+            file_path,
+            sizeof(file_path),
+            "/home/elefloch/Simulation/Simu/Start/simulation_seed_%lu/brownian_LJ.lammpstrj",
+            cfg.seed
+        );
+    #else 
+        snprintf(
+            file_path,
+            sizeof(file_path),
+            "/Users/erwan/Documents/These/Cluster/Start/simulation_seed_%lu/brownian_LJ.lammpstrj",
+            cfg.seed
+        );
+    #endif
+
+    printf("📂 Ouverture du fichier : %s\n", file_path);
+
+    double** R_matrix = recuperer_derniere_structure(file_path, cfg.N);
+    if (R_matrix == NULL)
+    {
+        fprintf(stderr, "Error: Could not read the structure from the file.\n");
+        return 1;
+    }
+    for (int i = 0; i < cfg.N; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            sv.R[i][j] = R_matrix[i][j];
+        }
+    }
+    free_matrix_if_allocated(&R_matrix, cfg.N);
+
+    simu_LJ_RNAP_erwan(&cfg, &sv, &f);
+
+
+    cleanup_sim_vars(&sv, &cfg);
+    close_simulation_files(&cfg, &f);
+
+
+}

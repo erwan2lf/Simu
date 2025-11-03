@@ -52,26 +52,32 @@ int find_max_timestep(const char* nom_fichier) {
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * Lit la dernière structure atomique d’un fichier LAMMPS (.lammpstrj)
+ * et renvoie une matrice [N][3] contenant les positions (en nm).
+ *
+ * - Gère automatiquement la dernière frame du fichier
+ * - Ignore les colonnes additionnelles après zs
+ * - Tolère les formats de lignes variables
+ */
 double** recuperer_derniere_structure(const char* nom_fichier, int N) {
     FILE* fichier = fopen(nom_fichier, "r");
-    if (fichier == NULL) {
-        printf("Erreur : Impossible d'ouvrir le fichier %s\n", nom_fichier);
+    if (!fichier) {
+        printf("❌ Erreur : impossible d'ouvrir le fichier %s\n", nom_fichier);
         return NULL;
     }
 
-    int t;
-    double x, y, z;
-    double** R_matrix = (double**)malloc(N * sizeof(double*));
-    if (R_matrix == NULL) {
-        printf("Erreur : Échec de l'allocation de mémoire pour R_matrix\n");
+    // Allocation de la matrice des positions
+    double** R_matrix = malloc(N * sizeof(double*));
+    if (!R_matrix) {
+        printf("❌ Erreur : échec allocation R_matrix\n");
         fclose(fichier);
         return NULL;
     }
-
     for (int i = 0; i < N; i++) {
-        R_matrix[i] = (double*)malloc(3 * sizeof(double));
-        if (R_matrix[i] == NULL) {
-            printf("Erreur : Échec de l'allocation de mémoire pour R_matrix[%d]\n", i);
+        R_matrix[i] = malloc(3 * sizeof(double));
+        if (!R_matrix[i]) {
+            printf("❌ Erreur : échec allocation R_matrix[%d]\n", i);
             for (int j = 0; j < i; j++) free(R_matrix[j]);
             free(R_matrix);
             fclose(fichier);
@@ -79,29 +85,60 @@ double** recuperer_derniere_structure(const char* nom_fichier, int N) {
         }
     }
 
-    char buffer[256];
-    while (fgets(buffer, sizeof(buffer), fichier) != NULL) {
+    char buffer[512];
+    long last_atoms_pos = -1; // position du dernier bloc "ITEM: ATOMS"
+
+    // 🔍 Recherche de la dernière section ATOMS
+    while (fgets(buffer, sizeof(buffer), fichier)) {
         if (strstr(buffer, "ITEM: ATOMS id type xs ys zs") != NULL) {
-            for (int i = 0; i < N; i++) {
-                if (fscanf(fichier, "%*d %*d %lf %lf %lf", &x, &y, &z) != 3) {
-                    printf("Erreur : Lecture échouée à la particule %d\n", i);
-                    for (int j = 0; j < N; j++) free(R_matrix[j]);
-                    free(R_matrix);
-                    fclose(fichier);
-                    return NULL;
-                }
-                R_matrix[i][0] = x * 1000.0;
-                R_matrix[i][1] = y * 1000.0;
-                R_matrix[i][2] = z * 1000.0;
-            }
+            // Sauvegarde la position du début du bloc
+            last_atoms_pos = ftell(fichier);
         }
-        if (strstr(buffer, "ITEM: TIMESTEP") != NULL) {
-            fscanf(fichier, "%d", &t);
+    }
+
+    if (last_atoms_pos == -1) {
+        printf("❌ Erreur : aucune section ATOMS trouvée dans %s\n", nom_fichier);
+        for (int i = 0; i < N; i++) free(R_matrix[i]);
+        free(R_matrix);
+        fclose(fichier);
+        return NULL;
+    }
+
+    // 🔁 Revenir au dernier bloc de données ATOMS
+    fseek(fichier, last_atoms_pos, SEEK_SET);
+
+    // Lecture des N lignes de coordonnées
+    for (int i = 0; i < N; i++) {
+        if (!fgets(buffer, sizeof(buffer), fichier)) {
+            printf("❌ Erreur : fin de fichier prématurée à la particule %d\n", i);
+            goto erreur;
         }
+
+        int id, type;
+        double xs, ys, zs;
+        char reste[256]; // pour ignorer les colonnes supplémentaires
+
+        // Lis les 5 premières colonnes, ignore le reste
+        int n = sscanf(buffer, "%d %d %lf %lf %lf %[^\n]", &id, &type, &xs, &ys, &zs, reste);
+        if (n < 5) {
+            printf("❌ Erreur : ligne invalide à la particule %d : %s\n", i, buffer);
+            goto erreur;
+        }
+
+        // Conversion en nm
+        R_matrix[i][0] = xs * 1000.0;
+        R_matrix[i][1] = ys * 1000.0;
+        R_matrix[i][2] = zs * 1000.0;
     }
 
     fclose(fichier);
     return R_matrix;
+
+erreur:
+    for (int i = 0; i < N; i++) free(R_matrix[i]);
+    free(R_matrix);
+    fclose(fichier);
+    return NULL;
 }
 
 void creation_polymere_solenoide(int N, double a, double ecart, double epaisseur, double** R) {

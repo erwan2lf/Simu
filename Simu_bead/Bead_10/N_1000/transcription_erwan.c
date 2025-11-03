@@ -16,13 +16,16 @@
 #include "simulation.h"
 #include "neighborlist.h"   
 #include "file.h"
-//#include </Users/erwan/Documents/These/MTwister/mt19937ar.h>
-#include </home/elefloch/Simulation/MT/mt19937ar.h>
+#ifdef CLUSTER
+    #include </home/elefloch/Simulation/MT/mt19937ar.h>
+#else
+    #include </Users/erwan/Documents/These/MTwister/mt19937ar.h>
+#endif
 
 #define BOX_SIZE 1e3
 #define SCALE_POS 1000.0
 #define PI 3.14159265358979323846
-#define M_PI 3.14159265
+
 
 double*** matrix_rnap(int rows, int cols) {
     double*** matrix = (double***)malloc(rows * sizeof(double**));
@@ -742,7 +745,7 @@ void polymere_brownian_motion_ring_force(double** R_rnap, double alpha, double K
 double** polymere_brownian_motion_ring(double** R, double a, double K, double dt, int N, double** r_new) {
     double d1, d0, di, dk, da, db, f1, f2;
     double F_alea, pot_harm[3];
-    double bending_angle_target = 2*M_PI/8  ;
+    double bending_angle_target = 2*PI/8  ;
     double bending_K = K*1000;
     for (int i = 1; i < N - 1; i++) {
         da = distance(R[i - 1], R[i]);
@@ -1434,5 +1437,97 @@ void creation_1_rnap_erwan(double** R, int nb_rnap, int* positions_bille_rnap, d
             double dist_subunit = distance(R_rnap[0][1], R_rnap[0][0]);
             //printf("Distance entre deux subunits : %.2f \n", dist_subunit);
             //printf("Distance entre une subunit et le monomere : %.2f \n", dist_subunit_chrom);
+    }
+}
+
+
+void lennard_jones_forces_rnap_rnap(double ***R_rnap,
+                                    int nb_rnap,
+                                    double epsilon,
+                                    double sigma6,
+                                    double sigma12,
+                                    double cut_rnap2,
+                                    double Delta)
+{
+
+    double epsilon_rep = 10 * epsilon; 
+    double epsilon_att = epsilon; 
+
+    for (int rnap_i = 0; rnap_i < nb_rnap; rnap_i++) {
+
+        for (int sub_i = 0; sub_i < 8; sub_i++) {
+
+            double *Ri = R_rnap[rnap_i][sub_i];
+
+            // --- Interactions RNAP_i ↔ RNAP_j (j > i pour éviter les doublons) ---
+            for (int rnap_j = rnap_i + 1; rnap_j < nb_rnap; rnap_j++) {
+                for (int sub_j = 0; sub_j < 8; sub_j++) {
+
+                    double *Rj = R_rnap[rnap_j][sub_j];
+
+                    double dx = Ri[0] - Rj[0];
+                    double dy = Ri[1] - Rj[1];
+                    double dz = Ri[2] - Rj[2];
+
+                    double r2 = dx * dx + dy * dy + dz * dz;
+                    if (r2 > cut_rnap2 || r2 == 0.0)
+                        continue;
+
+                    // Pré-calculs pour le potentiel LJ
+                    double r8  = r2 * r2 * r2 * r2;
+                    double r14 = r8 * r2 * r2 * r2;
+
+                    // Force de Lennard-Jones classique : F = -dU/dr
+                    double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
+                                    - 6.0 * epsilon_att * sigma6 / r8);
+
+                    // Saturation (pour éviter les explosions)
+                    const double f_max = 600.0;
+                    if (f > f_max)
+                        f = f_max;
+
+                    // Application symétrique de la force
+                    Ri[0] += Delta * f * dx;
+                    Ri[1] += Delta * f * dy;
+                    Ri[2] += Delta * f * dz;
+
+                    Rj[0] -= Delta * f * dx;
+                    Rj[1] -= Delta * f * dy;
+                    Rj[2] -= Delta * f * dz;
+                }
+            }
+
+            // --- Auto-interactions entre sous-unités du même RNAP ---
+            for (int sub_j = 0; sub_j < 8; sub_j++) {
+                if (sub_i == sub_j) continue;
+
+                double *Rj = R_rnap[rnap_i][sub_j];
+                double dx = Ri[0] - Rj[0];
+                double dy = Ri[1] - Rj[1];
+                double dz = Ri[2] - Rj[2];
+                double r2 = dx * dx + dy * dy + dz * dz;
+                if (r2 > cut_rnap2 || r2 == 0.0)
+                    continue;
+
+                double r8  = r2 * r2 * r2 * r2;
+                double r14 = r8 * r2 * r2 * r2;
+
+                // Force modifiée : plus répulsive entre sous-unités d’un même RNAP
+                double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
+                                - 6.0 * epsilon_att * sigma6 / r8);
+
+                const double f_max = 300.0;
+                if (f > f_max)
+                    f = f_max;
+
+                Ri[0] += Delta * f * dx;
+                Ri[1] += Delta * f * dy;
+                Ri[2] += Delta * f * dz;
+
+                Rj[0] -= Delta * f * dx;
+                Rj[1] -= Delta * f * dy;
+                Rj[2] -= Delta * f * dz;
+            }
+        }
     }
 }

@@ -30,14 +30,24 @@ int main(int argc, char*argv[])
     setvbuf(stdout, NULL, _IONBF, 0); 
     static SimVars sv; 
     static Files f; 
+
     fflush(stdout);
     Config cfg = parse_config(argc, argv);
+
+    int t_start = 0;
+    if (load_checkpoint(&sv, &cfg, &t_start))
+    {
+        printf("Reprise depuis t = %d \n", t_start);
+    } 
+    else
+    {
+        printf("Démarrage neuf\n"); 
+        init_sim_vars(&sv, &cfg);
+    }
 
     init_genrand(cfg.seed);
     printf("Premier nombre aléatoire : %.10f\n",genrand_real2());
 
-
-    init_sim_vars(&sv, &cfg);
     open_simulation_files(&cfg, &f);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,7 +95,7 @@ int main(int argc, char*argv[])
     }
     free_matrix_if_allocated(&R_matrix, cfg.N);
 
-    simu_LJ_RNAP_erwan(&cfg, &sv, &f);
+    simu_LJ_RNAP_erwan(&cfg, &sv, &f, t_start);
 
 
     cleanup_sim_vars(&sv, &cfg);

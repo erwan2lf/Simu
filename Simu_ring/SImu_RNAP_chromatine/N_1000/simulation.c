@@ -497,7 +497,7 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
 
 
-void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap){
+void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap, int t_start){
 
     clock_t start_2, end_2; 
     clock_t start, end;double duree_boucle, duree_tot = 0, temps_restant;
@@ -507,8 +507,16 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
 
     clock_gettime(CLOCK_MONOTONIC, &last);
 
-
-    for (int t = 0; t < cfg->T; t++){
+    int time_depart;
+    if(t_start != 0)
+    {
+        time_depart = t_start;
+    }
+    else
+    {
+        time_depart = 0;
+    }
+    for (int t = time_depart; t < cfg->T; t++){
         // if(sv->nb_rnap==cfg->nb_rnap_initial){break;}
         // if(t==1000){break;}
 

@@ -7,7 +7,7 @@
 
 Config parse_config(int argc, char *argv[])
 {
-    Config cfg; 
+    Config cfg = {0}; 
 
     
 
@@ -27,12 +27,12 @@ Config parse_config(int argc, char *argv[])
     cfg.K_transpt       = atof(argv[3]); 
     cfg.seed            = strtoul(argv[4], NULL, 10); 
 
-    print_header("Lecture des arguments (définis dans .bash)");
+    // print_header("Lecture des arguments (définis dans .bash)");
 
-    printf("Nombre de RNAP : %d \n", cfg.nb_rnap_initial);
-    printf("Vitesse des RNAP en a/Tau_0 : %d \n", cfg.vitesse_rnap);
-    printf("Constant de raideur RNAP - chromatine : %d \n", cfg.K_transpt);
-    printf("Seed  : %d \n", cfg.seed);
+    // printf("Nombre de RNAP : %d \n", cfg.nb_rnap_initial);
+    // printf("Vitesse des RNAP en a/Tau_0 : %lf \n", cfg.vitesse_rnap);
+    // printf("Constant de raideur RNAP - chromatine : %lf \n", cfg.K_transpt);
+    // printf("Seed  : %lu \n", cfg.seed);
 
     
 
@@ -62,26 +62,26 @@ Config parse_config(int argc, char *argv[])
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
 
-    print_header("Paramètres par défaut");
+    // print_header("Paramètres par défaut");
 
 
-    printf("Nombre de monomères : %d\n", cfg.N);
-    printf("Taille des monomères : %lf\n", cfg.a);
-    printf("Taille des RNAP (en unité de a) : %lf\n", cfg.alpha); 
-    printf("Constante de raideur de la chromatine : %lf\n", cfg.K);
-    printf("Constante de raideur RNAP-RNAP : %lf\n", cfg.K_rnap);
-    printf("Module de courbure: %lf\n", cfg.K_bend);
-    printf("Pas de temps : %lf ", cfg.Delta);
-    printf("Intensité de LJ chromatine-chromatine : %lf\n",cfg.epsilon);
-    printf("Intensité de LJ RNAP-RNAP : %lf\n",cfg.epsilon_rnap);
-    printf("Sigma LJ (en unitté de a) : %lf\n", cfg.sigma); 
-    printf("Début du segment transcrit : %d \n", cfg.debut_segment); 
-    printf("Fin du segment transcrit : %d \n", cfg.debut_segment); 
-    printf("Nombre de sous unités par RNAP : %d\n", cfg.rnap_subunits); 
-    printf("Rayon écrantage LJ chromatine-chromatine : %lf \n", cfg.rayon_ecrantage_LJ_chrom);
-    printf("Rayon écrantage LJ RNAP-RNAO : %lf \n", cfg.rayon_ecrantage_LJ_rnap);
-    printf("Nombre de billes entre deux RNAP : %d\n", cfg.ecart_train);
-    printf("Taille de la sphère de confinement (si 0 pas de confinement) : %d\n",cfg.r_sphere);
+    // printf("Nombre de monomères : %d\n", cfg.N);
+    // printf("Taille des monomères : %lf\n", cfg.a);
+    // printf("Taille des RNAP (en unité de a) : %lf\n", cfg.alpha); 
+    // printf("Constante de raideur de la chromatine : %lf\n", cfg.K);
+    // printf("Constante de raideur RNAP-RNAP : %lf\n", cfg.K_rnap);
+    // printf("Module de courbure: %lf\n", cfg.K_bend);
+    // printf("Pas de temps : %lf ", cfg.Delta);
+    // printf("Intensité de LJ chromatine-chromatine : %lf\n",cfg.epsilon);
+    // printf("Intensité de LJ RNAP-RNAP : %lf\n",cfg.epsilon_rnap);
+    // printf("Sigma LJ (en unitté de a) : %lf\n", cfg.sigma); 
+    // printf("Début du segment transcrit : %d \n", cfg.debut_segment); 
+    // printf("Fin du segment transcrit : %d \n", cfg.debut_segment); 
+    // printf("Nombre de sous unités par RNAP : %d\n", cfg.rnap_subunits); 
+    // printf("Rayon écrantage LJ chromatine-chromatine : %lf \n", cfg.rayon_ecrantage_LJ_chrom);
+    // printf("Rayon écrantage LJ RNAP-RNAO : %lf \n", cfg.rayon_ecrantage_LJ_rnap);
+    // printf("Nombre de billes entre deux RNAP : %d\n", cfg.ecart_train);
+    // printf("Taille de la sphère de confinement (si 0 pas de confinement) : %d\n",cfg.r_sphere);
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,35 +102,66 @@ Config parse_config(int argc, char *argv[])
     ////////////////////////////////////////////////////////////////////////////////////////           Durées et périodicitéss           ///////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    print_header("Durées et périodicitéss");
+    // print_header("Durées et périodicitéss");
 
     int N_rec = 1000; 
+    int k;
+
     if(cfg.nb_rnap_initial == 0)
     {
-        cfg.T = 2200000;
+        cfg.T = 500000;
+        printf("T0 = %d\n", cfg.T);
+        cfg.T_eq = 0;
+
+        k = (cfg.T + N_rec - 1) / N_rec; 
+        cfg.periode_enregistrement = k;  // periode_enregistrement
+        printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
+        cfg.periode_msd = k;   // msd
+        cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
+        cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
+
+        cfg.periode_centre_de_masse = cfg.T;       // cdm
+        cfg.periode_voisin = cfg.T;       // voisins
+        cfg.periode_force = cfg.T;       // force
+
+
     }
     else
     {
         cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (cfg.nb_rnap_initial)) / (cfg.vitesse_rnap * cfg.Delta) );
-    }
-    printf("T0 = %d\n", cfg.T);
-    cfg.T = cfg.T + cfg.T/10;
-    printf("T1 = %d\n", cfg.T);
-    int k = (cfg.T + N_rec - 1) / N_rec; 
-    cfg.T =  k * N_rec;
-    printf("Tf = %d\n", cfg.T);
+        printf("T0 = %d\n", cfg.T);
+        cfg.T = cfg.T + cfg.T/10;
+        printf("T1 = %d\n", cfg.T);
+        k = (cfg.T + N_rec - 1) / N_rec; 
+        cfg.T =  k * N_rec;
+        printf("Tf = %d\n", cfg.T);
 
-    cfg.T_eq   = cfg.T/10;
-    cfg.periode_enregistrement = k;  // periode_enregistrement
-    printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
-    cfg.periode_msd = k;   // msd
-    cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
-    cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
+        cfg.periode_enregistrement = k;  // periode_enregistrement
+        printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
+        cfg.periode_msd = k;   // msd
+        cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
+        cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
+        
+    
+        cfg.periode_centre_de_masse = cfg.T;       // cdm
+        cfg.periode_voisin = cfg.T;       // voisins
+        cfg.periode_force = cfg.T;       // force
+    }
+    
+    
+    
+
+    
+    // cfg.periode_enregistrement = k;  // periode_enregistrement
+    // printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
+    // cfg.periode_msd = k;   // msd
+    // cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
+    // cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
     
    
-    cfg.periode_centre_de_masse = cfg.T;       // cdm
-    cfg.periode_voisin = cfg.T;       // voisins
-    cfg.periode_force = cfg.T;       // force
+    // cfg.periode_centre_de_masse = cfg.T;       // cdm
+    // cfg.periode_voisin = cfg.T;       // voisins
+    // cfg.periode_force = cfg.T;       // force
 
     cfg.T_enregistrement = cfg.T / cfg.periode_enregistrement;
     printf("T_enregistrement = %d \n", cfg.T_enregistrement);
@@ -157,38 +188,44 @@ Config parse_config(int argc, char *argv[])
 
     cfg.dx_avancement_rnap = cfg.vitesse_rnap * cfg.Delta; 
 
-    // --- Fichiers
 
-    cfg.nom_fichier = "brownian_LJ.lammpstrj";
-    cfg.nom_fichier_rnap = "brownian_rnap.lammpstrj";
+    // === Noms des fichiers ===
+    snprintf(cfg.nom_fichier, sizeof(cfg.nom_fichier), "brownian_LJ.lammpstrj");
+    snprintf(cfg.nom_fichier_rnap, sizeof(cfg.nom_fichier_rnap), "brownian_rnap.lammpstrj");
 
-    cfg.nom_fichier_equilibre = "brownian_LJ_equilibre.lammpstrj"; 
-    cfg.nom_fichier_rnap_equilibre = "brownian_LJ_rnap_equilibre.lammpstrj";
+    snprintf(cfg.nom_fichier_equilibre, sizeof(cfg.nom_fichier_equilibre), "brownian_LJ_equilibre.lammpstrj");
+    snprintf(cfg.nom_fichier_rnap_equilibre, sizeof(cfg.nom_fichier_rnap_equilibre), "brownian_LJ_rnap_equilibre.lammpstrj");
 
-    cfg.nom_test = "test.txt";
-    cfg.nom_test2 = "test2.txt";
-    cfg.nom_R_centre_de_masse = "nom_R_centre_de_masse.txt";
+    snprintf(cfg.nom_test, sizeof(cfg.nom_test), "test.txt");
+    snprintf(cfg.nom_test2, sizeof(cfg.nom_test2), "test2.txt");
+    snprintf(cfg.nom_R_centre_de_masse, sizeof(cfg.nom_R_centre_de_masse), "centre_de_masse.txt");
 
-    cfg.nom_fichier_force = "fichier_force.txt";
-    cfg.nom_fichier_force_rnap = "fichier_force_rnap.txt";
-    cfg.nom_fichier_force_rnap_2 = "fichier_force_rnap2.txt";
-    cfg.nom_fichier_force_thermique = "fichier_force_rnap2.txt";
-    cfg.nom_fichier_force_rnap_LJ = "fichier_force_rnap_LJ.txt";
-    cfg.nom_fichier_force_LJ = "fichier_force_LJ.txt";
-    cfg.nom_fichier_force_lea = "fichier_force_lea.txt";
+    snprintf(cfg.nom_fichier_force, sizeof(cfg.nom_fichier_force), "fichier_force.txt");
+    snprintf(cfg.nom_fichier_force_rnap, sizeof(cfg.nom_fichier_force_rnap), "fichier_force_rnap.txt");
+    snprintf(cfg.nom_fichier_force_rnap_2, sizeof(cfg.nom_fichier_force_rnap_2), "fichier_force_rnap2.txt");
+    snprintf(cfg.nom_fichier_force_thermique, sizeof(cfg.nom_fichier_force_thermique), "fichier_force_thermique.txt");
+    snprintf(cfg.nom_fichier_force_rnap_LJ, sizeof(cfg.nom_fichier_force_rnap_LJ), "fichier_force_rnap_LJ.txt");
+    snprintf(cfg.nom_fichier_force_LJ, sizeof(cfg.nom_fichier_force_LJ), "fichier_force_LJ.txt");
+    snprintf(cfg.nom_fichier_force_lea, sizeof(cfg.nom_fichier_force_lea), "fichier_force_lea.txt");
 
-    cfg.nom_fichier_endtoend_segment = "endtoend_segment.txt";
-    cfg.nom_fichier_endtoend_avant = "endtoend_avant.txt";
-    cfg.nom_fichier_endtoend_apres = "endtoend_apres.txt";
-    cfg.nom_fichier_voisin = "voisin.txt";
-    cfg.nom_fichier_endtoend = "endtoend.txt";
-    cfg.nom_fichier_correl_segment = "correl_segment.txt";
+    snprintf(cfg.nom_fichier_endtoend_segment, sizeof(cfg.nom_fichier_endtoend_segment), "endtoend_segment.txt");
+    snprintf(cfg.nom_fichier_endtoend_avant, sizeof(cfg.nom_fichier_endtoend_avant), "endtoend_avant.txt");
+    snprintf(cfg.nom_fichier_endtoend_apres, sizeof(cfg.nom_fichier_endtoend_apres), "endtoend_apres.txt");
+    snprintf(cfg.nom_fichier_endtoend, sizeof(cfg.nom_fichier_endtoend), "endtoend.txt");
+    snprintf(cfg.nom_fichier_voisin, sizeof(cfg.nom_fichier_voisin), "voisin.txt");
+    snprintf(cfg.nom_fichier_correl_segment, sizeof(cfg.nom_fichier_correl_segment), "correl_segment.txt");
 
-    cfg.nom_fichier_lamps = "brownian_LJ.lammpstrj";
-    cfg.nom_fichier_rnap_lamps = "brownian_rnap.lammpstrj";
+    // === fichiers LAMMPS ===
+    snprintf(cfg.nom_fichier_lamps, sizeof(cfg.nom_fichier_lamps), "brownian_LJ.lammpstrj");
+    snprintf(cfg.nom_fichier_rnap_lamps, sizeof(cfg.nom_fichier_rnap_lamps), "brownian_rnap.lammpstrj");
 
-    cfg.nom_fichier_equilibre_lamps = "brownian_LJ_equilibre.lammpstrj"; 
-    cfg.nom_fichier_rnap_equilibre_lamps = "brownian_LJ_rnap_equilibre.lammpstrj";
+    snprintf(cfg.nom_fichier_equilibre_lamps, sizeof(cfg.nom_fichier_equilibre_lamps), "brownian_LJ_equilibre.lammpstrj");
+    snprintf(cfg.nom_fichier_rnap_equilibre_lamps, sizeof(cfg.nom_fichier_rnap_equilibre_lamps), "brownian_LJ_rnap_equilibre.lammpstrj");
+
+
+        ///// Restart de simu 
+
+    cfg.resume_from_checkpoint = 0; 
 
 
     return cfg;
@@ -268,62 +305,3 @@ void print_banner(void) {
 }
 
 
-
-
-
-void save_checkpoint(const SimVars *sv, const Config *cfg, int t)
-{
-    unsigned long state[624];
-    int index;
-    get_mt_state(state, &index); // récupère l'état du RNG
-
-    char current[256], backup[256];
-    snprintf(current, sizeof(current), "./Resultats/checkpoint_last.dat");
-    snprintf(backup, sizeof(backup), "./Resultats/checkpoint_prev.dat");
-
-    // Renomme le précédent pour le garder en backup
-    rename(current, backup);
-
-    FILE *f = fopen(current, "wb");
-    if (!f) {
-        fprintf(stderr, "❌ Erreur : impossible d'ouvrir %s pour écriture\n", current);
-        return;
-    }
-
-    fwrite(&t, sizeof(int), 1, f);
-    fwrite(&sv->nb_rnap, sizeof(int), 1, f);
-    fwrite(sv->R, sizeof(double), 3 * cfg->N, f);
-    fwrite(sv->R_rnap, sizeof(double), MAX_RNAP * RNAP_SUBUNITS * 3, f);
-    fwrite(state, sizeof(state), 1, f);
-    fwrite(&index, sizeof(int), 1, f);
-    fclose(f);
-
-    printf("💾 Checkpoint sauvegardé à t = %d\n", t);
-    fflush(stdout);
-}
-
-int load_checkpoint(SimVars *sv, Config *cfg, int *t_start)
-{
-    unsigned long state[624];
-    int index;
-
-    FILE *f = fopen("./Resultats/checkpoint_last.dat", "rb");
-    if (!f) {
-        printf("🚀 Aucun checkpoint trouvé, démarrage neuf\n");
-        return 0;
-    }
-
-    fread(t_start, sizeof(int), 1, f);
-    fread(&sv->nb_rnap, sizeof(int), 1, f);
-    fread(sv->R, sizeof(double), 3 * cfg->N, f);
-    fread(sv->R_rnap, sizeof(double), MAX_RNAP * RNAP_SUBUNITS * 3, f);
-    fread(state, sizeof(state), 1, f);
-    fread(&index, sizeof(int), 1, f);
-    fclose(f);
-
-    set_mt_state(state, index);
-
-    printf("✅ Checkpoint chargé (t = %d)\n", *t_start);
-    fflush(stdout);
-    return 1;
-}

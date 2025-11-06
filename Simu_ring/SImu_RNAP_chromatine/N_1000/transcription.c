@@ -676,7 +676,7 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////   💾 État initial et enregistrements initiaux   ////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
-    if (cfg->nb_rnap_initial > 0)
+    if (cfg->nb_rnap_initial > 0 && cfg->resume_from_checkpoint == 0)
     {
         enregistrement_RNAP(
             f->fichier,                 
@@ -688,16 +688,16 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
             sv->positions_bille_rnap,   
             cfg->rnap_subunits,         
             cfg->nb_rnap_initial,      
-            sv->l_rnap                  
+            sv->l_rnap
         );
     }
 
 //     //////////////////////////////////////////////////////////////////////////////////////////////////////
 //     //////////////////////////////////////   ⚖️ Mise à l'équilibre   //////////////////////////////////////
 //     //////////////////////////////////////////////////////////////////////////////////////////////////////
-    if(t_start == 0)
+    if(cfg->resume_from_checkpoint == 0)
     {
-        f_equilibriate(sv, cfg, f, neighbor_lists, neighbor_lists_rnap, nbr_simu);
+        f_equilibriate(sv, cfg, f, neighbor_lists, neighbor_lists_rnap);
     }
 
     

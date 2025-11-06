@@ -26,12 +26,18 @@
  * Si un fichier échoue à s’ouvrir, la fonction affiche une erreur explicite et termine le programme.
  * --------------------------------------------------------------------------------------------------
  */
-void open_simulation_files(const Config *cfg, Files *f) {
-
+void open_simulation_files(const Config *cfg, Files *f)
+{
     //////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////  📁 Création du répertoire "Resultats"  ///////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////
+
+    printf("\n--- DEBUG CONFIG open_simulation_files() ---\n");
+    printf("cfg->nom_fichier ptr = %p\n", (void*)cfg->nom_fichier);
+    printf("cfg->nom_fichier = '%s'\n\n", cfg->nom_fichier);
+
     const char *result_dir = "Resultats";
+
     struct stat st = {0};
 
     if (stat(result_dir, &st) == -1) {
@@ -45,79 +51,91 @@ void open_simulation_files(const Config *cfg, Files *f) {
         printf("📂 Dossier 'Resultats' déjà existant.\n");
     }
 
+    
+    
     //////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////  🧾 Construction des chemins de fichiers  /////////////////////////////
+    ///////////////////////////  ✏️ Mode d'ouverture: "w" ou "a"  ////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // Si reprise depuis un checkpoint → on AJOUTE dans les fichiers existants
+    const char *mode = (cfg->resume_from_checkpoint ? "a" : "w");
 
     char path[512];
-
+    
     // === Fichiers principaux ===
+
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier);
-    f->fichier = fopen(path, "w");
+    f->fichier = fopen(path, mode);
+
+   
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_equilibre);
-    f->fichier_equilibre = fopen(path, "w");
+    f->fichier_equilibre = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_rnap_equilibre);
-    f->fichier_rnap_equilibre = fopen(path, "w");
+    f->fichier_rnap_equilibre = fopen(path, mode);
+
+    
 
     // === Tests et suivi ===
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_test);
-    f->test2 = fopen(path, "w");
+    f->test2 = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_test2);
-    f->test = fopen(path, "w");
+    f->test = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_R_centre_de_masse);
-    f->centre_de_masse = fopen(path, "w");
+    f->centre_de_masse = fopen(path, mode);
 
     // === Forces ===
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_force);
-    f->fichier_force = fopen(path, "w");
+    f->fichier_force = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_force_rnap);
-    f->fichier_force_rnap = fopen(path, "w");
+    f->fichier_force_rnap = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_force_rnap_2);
-    f->fichier_force_rnap_2 = fopen(path, "w");
+    f->fichier_force_rnap_2 = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_force_thermique);
-    f->fichier_force_thermique = fopen(path, "w");
+    f->fichier_force_thermique = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_force_rnap_LJ);
-    f->fichier_force_rnap_LJ = fopen(path, "w");
+    f->fichier_force_rnap_LJ = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_force_LJ);
-    f->fichier_force_LJ = fopen(path, "w");
+    f->fichier_force_LJ = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_force_lea);
-    f->fichier_force_lea = fopen(path, "w");
+    f->fichier_force_lea = fopen(path, mode);
 
     // === End-to-end, voisinage, corrélations ===
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_endtoend_segment);
-    f->fichier_endtoend_segment = fopen(path, "w");
+    f->fichier_endtoend_segment = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_endtoend_avant);
-    f->fichier_endtoend_avant = fopen(path, "w");
+    f->fichier_endtoend_avant = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_endtoend_apres);
-    f->fichier_endtoend_apres = fopen(path, "w");
+    f->fichier_endtoend_apres = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_endtoend);
-    f->fichier_endtoend = fopen(path, "w");
+    f->fichier_endtoend = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_voisin);
-    f->fichier_voisin = fopen(path, "w");
+    f->fichier_voisin = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/%s", result_dir, cfg->nom_fichier_correl_segment);
-    f->fichier_correl_segment = fopen(path, "w");
+    f->fichier_correl_segment = fopen(path, mode);
 
     // === Paramètres et RNAP ===
     snprintf(path, sizeof(path), "%s/param.txt", result_dir);
-    f->param = fopen(path, "w");
+    f->param = fopen(path, mode);
 
     snprintf(path, sizeof(path), "%s/rnap.txt", result_dir);
-    f->fichier_rnap = fopen(path, "w");
+    f->fichier_rnap = fopen(path, mode);
+
+    
 
     //////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////  ✅ Vérification d’ouverture  ////////////////////////////////////
@@ -149,7 +167,7 @@ void open_simulation_files(const Config *cfg, Files *f) {
 
 #undef CHECK_FILE
 
-    printf("✅ Tous les fichiers ont été ouverts dans ./Resultats/\n");
+    printf("✅ Tous les fichiers ont été ouverts dans ./Resultats/ (mode = %s)\n", mode);
 }
 
 void close_simulation_files(const Config *cfg, Files *f){
@@ -180,59 +198,3 @@ void close_simulation_files(const Config *cfg, Files *f){
 }
 
 
-void save_checkpoint(const SimVars *sv, const Config *cfg, int t)
-{
-    unsigned long state[624];
-    int index;
-    get_mt_state(state, &index); // récupère l'état du RNG
-
-    char current[256], backup[256];
-    snprintf(current, sizeof(current), "./Resultats/checkpoint_last.dat");
-    snprintf(backup, sizeof(backup), "./Resultats/checkpoint_prev.dat");
-
-    // Renomme le précédent pour le garder en backup
-    rename(current, backup);
-
-    FILE *f = fopen(current, "wb");
-    if (!f) {
-        fprintf(stderr, "❌ Erreur : impossible d'ouvrir %s pour écriture\n", current);
-        return;
-    }
-
-    fwrite(&t, sizeof(int), 1, f);
-    fwrite(&sv->nb_rnap, sizeof(int), 1, f);
-    fwrite(sv->R, sizeof(double), 3 * cfg->N, f);
-    fwrite(sv->R_rnap, sizeof(double), MAX_RNAP * RNAP_SUBUNITS * 3, f);
-    fwrite(state, sizeof(state), 1, f);
-    fwrite(&index, sizeof(int), 1, f);
-    fclose(f);
-
-    printf("💾 Checkpoint sauvegardé à t = %d\n", t);
-    fflush(stdout);
-}
-
-int load_checkpoint(SimVars *sv, Config *cfg, int *t_start)
-{
-    unsigned long state[624];
-    int index;
-
-    FILE *f = fopen("./Resultats/checkpoint_last.dat", "rb");
-    if (!f) {
-        printf("🚀 Aucun checkpoint trouvé, démarrage neuf\n");
-        return 0;
-    }
-
-    fread(t_start, sizeof(int), 1, f);
-    fread(&sv->nb_rnap, sizeof(int), 1, f);
-    fread(sv->R, sizeof(double), 3 * cfg->N, f);
-    fread(sv->R_rnap, sizeof(double), MAX_RNAP * RNAP_SUBUNITS * 3, f);
-    fread(state, sizeof(state), 1, f);
-    fread(&index, sizeof(int), 1, f);
-    fclose(f);
-
-    set_mt_state(state, index);
-
-    printf("✅ Checkpoint chargé (t = %d)\n", *t_start);
-    fflush(stdout);
-    return 1;
-}

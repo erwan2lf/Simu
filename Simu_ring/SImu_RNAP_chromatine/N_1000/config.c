@@ -43,10 +43,10 @@ Config parse_config(int argc, char *argv[])
 
     cfg.nbr_total_simu  = 1; 
     cfg.N               = 1000;
-    cfg.a               = 1.0;
+    cfg.a               = 4;
     cfg.alpha           = 1.0;
     cfg.K               = 1000.0;
-    cfg.K_rnap          = 1000.0;
+    cfg.K_rnap          = 500.0;
     cfg.K_bend          = 0.0;
     cfg.Delta           = 1e-4;
     cfg.epsilon         = 0.0024;
@@ -56,7 +56,7 @@ Config parse_config(int argc, char *argv[])
     cfg.sigma12 = pow(cfg.sigma,12);
     cfg.debut_segment   = 300;
     cfg.fin_segment     = 400;
-    cfg.rnap_subunits   = 8;
+    cfg.rnap_subunits   = 1;
     cfg.rayon_ecrantage_LJ_chrom = 2.0;
     cfg.rayon_ecrantage_LJ_rnap  = 2.0;
     cfg.ecart_train     = 2;
@@ -96,6 +96,8 @@ Config parse_config(int argc, char *argv[])
     cfg.critere = 1; // critere
     cfg.temperature = 1; // temperature
     cfg.equilibriate = 1; // Mise a l'équilibre du système avant calcul
+    cfg.quench = 0;
+        
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,6 +150,10 @@ Config parse_config(int argc, char *argv[])
         cfg.periode_force = cfg.T;       // force
     }
     
+    if(cfg.quench == 1)
+    {
+        cfg.vitesse_rnap = 0;
+    }
     
     
 

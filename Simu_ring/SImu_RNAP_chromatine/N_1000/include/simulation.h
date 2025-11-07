@@ -92,7 +92,7 @@ void cleanup_sim_vars(SimVars *sv, Config *cfg);
 void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap, int t_start);
 void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap);
 
-void creation_1_rnap_erwan(double **R, int id_rnap, int *positions_bille_rnap,
+void creation_1_rnap_erwan(const Config *cfg, double **R, int id_rnap, int *positions_bille_rnap,
                            double ***R_rnap, int N, int rnap_subunits,
                            int debut_segment, int fin_segment, int nb_rnap_initial);
 void ajouter_rnap(SimVars *sv, const Config *cfg,

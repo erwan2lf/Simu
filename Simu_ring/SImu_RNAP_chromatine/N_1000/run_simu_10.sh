@@ -8,6 +8,9 @@
 #SBATCH -p amd32
 
 echo "======== SLURM SIMULATION LAUNCH ========"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Date  : $(date)"
+echo "Dir   : $SLURM_SUBMIT_DIR"
 
 cd "$SLURM_SUBMIT_DIR"
 
@@ -48,9 +51,8 @@ MAX_PARALLEL="$OMP_NUM_THREADS"
 echo "🖥️  Threads OpenMP         : $OMP_NUM_THREADS"
 echo "⚙️  Jobs en parallèle (bg)  : $MAX_PARALLEL"
 
-
 # =============================
-# PARAMETRES DES SIMULATIONS
+# PARAMÈTRES DES SIMULATIONS
 # =============================
 parent_folder="$SLURM_SUBMIT_DIR/Simulations"
 mkdir -p "$parent_folder"
@@ -60,9 +62,13 @@ vitesse_rnap_values=(0.1)
 Ktranspt_values=(2)
 seeds=({1..50})
 
+# =============================
+# Gestion des signaux SLURM
+# =============================
+trap 'echo "⚠️  SIGTERM reçu à $(date) — sauvegarde et marquage pour relance"; touch "$SLURM_SUBMIT_DIR/.RELAUNCH"; exit 0' SIGTERM
 
 # =============================
-# Fonction : relance automatique
+# Fonction : une simulation
 # =============================
 run_one_simulation() {
   local sim_dir="$1"
@@ -83,7 +89,6 @@ run_one_simulation() {
   fi
 
   while true; do
-
       echo ">> $(date +"[%H:%M:%S]") Lancement main" | tee -a output.txt
 
       "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" \
@@ -95,6 +100,12 @@ run_one_simulation() {
          break
       fi
 
+      # Si signal SLURM reçu → on stoppe la boucle (reprise au prochain job)
+      if [[ -f "$SLURM_SUBMIT_DIR/.RELAUNCH" ]]; then
+         echo "🛑 Arrêt demandé par SLURM, sauvegarde checkpoint OK"
+         break
+      fi
+
       # Sinon → Checkpoint détecté, reprise automatique
       echo "🔄 Checkpoint détecté → Reprise automatique…" | tee -a output.txt
   done
@@ -102,25 +113,21 @@ run_one_simulation() {
   cd "$SLURM_SUBMIT_DIR"
 }
 
-
 # =============================
 # Boucles des simulations
 # =============================
 running=0
 
 for nb_rnap in "${nb_rnap_values[@]}"; do
-
   nb_rnap_folder="$parent_folder/nb-rnap_${nb_rnap}"
   mkdir -p "$nb_rnap_folder"
 
   for vitesse in "${vitesse_rnap_values[@]}"; do
     for Ktranspt in "${Ktranspt_values[@]}"; do
-
       k_folder="$nb_rnap_folder/vitesse_${vitesse}/Ktranspt_${Ktranspt}"
       mkdir -p "$k_folder"
 
       for seed in "${seeds[@]}"; do
-
         sim_dir="$k_folder/simulation_seed_${seed}"
         mkdir -p "$sim_dir"
 
@@ -133,11 +140,26 @@ for nb_rnap in "${nb_rnap_values[@]}"; do
           wait
           running=0
         fi
-
       done
     done
   done
 done
 
 wait
-echo "🎉 Toutes les simulations sont terminées."
+
+# =============================
+# Relance automatique
+# =============================
+echo "🧩 Vérification des simulations incomplètes..."
+unfinished=$(find "$parent_folder" -type d -name "simulation_seed_*" ! -exec test -f "{}/.FINISHED" ';' -print | wc -l)
+
+if (( unfinished > 0 )); then
+    echo "⚠️  $unfinished simulations incomplètes → relance automatique"
+    rm -f "$SLURM_SUBMIT_DIR/.RELAUNCH"
+    sbatch "$0"
+else
+    echo "🎉 Toutes les simulations sont terminées."
+    rm -f "$SLURM_SUBMIT_DIR/.RELAUNCH"
+fi
+
+echo "======== END OF JOB $(date) ========"

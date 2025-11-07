@@ -61,6 +61,7 @@ void polymere_brownian_motion_ring_force(double** R_rnap, double alpha, double K
 void mvt_brownian_harmonic_force_RNAP(int p, int pmin, int pmax, int rnap, double** R, double alpha, double K, double Delta, FILE *test, int t, int periode_enregistrement_force, FILE* fichier_force_rnap, FILE* fichier_force_thermique, int temperature);
 void liaison_sup(double alpha, double K_transpt, double Delta, double** r, int p1, int p2, FILE* fichier_force_rnap_2, int t, int periode_enregistrement_force);
 void bond_rnap_bead_progressive_mvt(
+    const Config *cfg,
     double** R,                 // positions de la chromatine
     double** R_rnap,            // positions des sous-unités RNAP [8][3]
     double a_transpt,           // longueur à l'équilibre (si utile dans votre modèle)
@@ -74,8 +75,10 @@ void bond_rnap_bead_progressive_mvt(
     int periode_enregistrement_force,
     int t
 );
-void lennard_jones_forces_rnap(double ***R_rnap, int nb_rnap, double **R, int N, NeighborList_rnap **neighbor_lists, double epsilon, double sigma6, double sigma12, double sigma6rnap2, double sigma12rnap2, double cut_rnap2, double Delta, int t, FILE* test, int T, FILE* fichier_force_rnap, int periode_enregistrement_force, int* l_rnap);
-void lennard_jones_forces_rnap_rnap(double ***R_rnap,
+void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap, double **R, int N, NeighborList_rnap **neighbor_lists, double epsilon, double sigma6, double sigma12, double sigma6rnap2, double sigma12rnap2, double cut_rnap2, double Delta, int t, FILE* test, int T, FILE* fichier_force_rnap, int periode_enregistrement_force, int* l_rnap);
+void lennard_jones_forces_rnap_rnap(
+                                    const Config *cfg,
+                                    double ***R_rnap,
                                     int nb_rnap,
                                     double epsilon,
                                     double sigma6,

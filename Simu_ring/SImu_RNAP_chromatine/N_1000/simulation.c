@@ -12,7 +12,7 @@
 #include <math.h>    // pour log10()
 
 #define MAX_RNAP 50
-#define RNAP_SUBUNITS 8 
+#define MAX_RNAP_SUBUNITS 8 
 #define DIM 3
 
 
@@ -128,8 +128,8 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
     }
 
     sv->positions_bille_rnap = calloc(MAX_RNAP, sizeof(int)); 
-    sv->R_rnap = allocate_matrix_3D(MAX_RNAP, RNAP_SUBUNITS); 
-    sv->R_rnap_new = allocate_matrix_3D(MAX_RNAP, RNAP_SUBUNITS);
+    sv->R_rnap = allocate_matrix_3D(MAX_RNAP, cfg->rnap_subunits); 
+    sv->R_rnap_new = allocate_matrix_3D(MAX_RNAP, cfg->rnap_subunits);
     sv->avancement_transcription = calloc(MAX_RNAP, sizeof(double));
     sv->compteur_mono_rnap = calloc(cfg->N, sizeof(int));
 
@@ -173,8 +173,8 @@ void cleanup_sim_vars(SimVars *sv, Config *cfg)
     free_matrix_cube_if_allocated(sv->stock_msd, cfg->nbr_total_simu, sv->T_msd);
 
     // --- RNAP ---
-    free_matrix_3D(sv->R_rnap, MAX_RNAP, RNAP_SUBUNITS);
-    free_matrix_3D(sv->R_rnap_new, MAX_RNAP, RNAP_SUBUNITS);
+    free_matrix_3D(sv->R_rnap, MAX_RNAP, cfg->rnap_subunits);
+    free_matrix_3D(sv->R_rnap_new, MAX_RNAP, cfg->rnap_subunits);
     free_if_allocated((void**)&sv->l_rnap);
     free_if_allocated((void**)&sv->positions_bille_rnap);
     free_if_allocated((void**)&sv->avancement_transcription);
@@ -251,7 +251,7 @@ void ajouter_rnap(SimVars *sv, const Config *cfg,
 
     // --- Génération géométrique de la nouvelle RNAP ---
     creation_1_rnap_erwan(
-        sv->R, new_id, sv->positions_bille_rnap, sv->R_rnap,
+        cfg, sv->R, new_id, sv->positions_bille_rnap, sv->R_rnap,
         cfg->N, cfg->rnap_subunits,
         cfg->debut_segment, cfg->fin_segment, cfg->nb_rnap_initial
     );
@@ -266,7 +266,7 @@ void ajouter_rnap(SimVars *sv, const Config *cfg,
                                   t);
         *p_neighbor_lists_rnap = neighbor_lists_rnap;
         build_neighbor_list_rnap_chrom(
-            sv->R_rnap, sv->nb_rnap, sv->R,
+            cfg, sv->R_rnap, sv->nb_rnap, sv->R,
             cfg->N, neighbor_lists_rnap, cfg->rayon_ecrantage_LJ_chrom, t
         );
     }
@@ -339,7 +339,7 @@ void retirer_rnap(SimVars *sv, const Config *cfg,
     NeighborList_rnap **lists = *p_lists;
     if (nb_actives > 0) {
         build_neighbor_list_rnap_chrom(
-            sv->R_rnap, nb_actives, sv->R,
+            cfg, sv->R_rnap, nb_actives, sv->R,
             cfg->N, lists, cfg->rayon_ecrantage_LJ_chrom, t
         );
         printf(C_GREEN "   🔁 Reconstruction des neighbor lists (%d actives)\n" C_RESET, nb_actives);
@@ -363,13 +363,25 @@ void retirer_rnap(SimVars *sv, const Config *cfg,
 
 
 
-void creation_1_rnap_erwan(double **R, int id_rnap, int *positions_bille_rnap,
+void creation_1_rnap_erwan(const Config *cfg, double **R, int id_rnap, int *positions_bille_rnap,
                            double ***R_rnap, int N, int rnap_subunits,
                            int debut_segment, int fin_segment, int nb_rnap_initial) {
     
     if (id_rnap < 0 || id_rnap >= MAX_RNAP) return;
 
-    int promoteur = debut_segment;
+    int promoteur;
+    if(cfg->quench == 0)
+    {
+        promoteur = debut_segment;
+    }
+    else
+    {
+        promoteur = positions_bille_rnap[id_rnap];
+        printf("promoteur = %d \n ", promoteur);
+    }
+
+
+
     double taille_pol = 2.0;
     double threshold = 1.0;
 
@@ -415,6 +427,8 @@ void creation_1_rnap_erwan(double **R, int id_rnap, int *positions_bille_rnap,
 
     positions_bille_rnap[id_rnap] = promoteur;
 }
+
+
 
 
 
@@ -508,7 +522,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
 
     struct timespec chrono_start, last, now;
     double interval = 60.0; // affichage de progression toutes les 60 s
-    double checkpoint_limit_h = 0.005; // 47h30min
+    double checkpoint_limit_h = 48; // 47h30min
     double checkpoint_limit_s = checkpoint_limit_h * 3600.0;
 
     // --- Initialisation du timer global ---
@@ -519,8 +533,15 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
     printf("▶️  Simulation lancée à t=%d avec limite de %.1f h (%.0f s)\n",
            time_depart, checkpoint_limit_h, checkpoint_limit_s);
 
+    
+    
+   
 
     for (int t = time_depart; t < cfg->T; t++) {
+
+        
+        // printf("R_rnap[0][0][0] = %lf \n ", sv->R_rnap[0][0][0]);
+
         
         clock_gettime(CLOCK_MONOTONIC, &now);
         double elapsed = (now.tv_sec - last.tv_sec) +
@@ -562,11 +583,12 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
             fflush(stdout);
             exit(0);
         }
+        
 
         // -----------------------------------------------------------------
         //  🧩 Code de simulation existant
         // -----------------------------------------------------------------
-
+        
         // Ajout conditionnel des RNAP
         if (cfg->nb_rnap_initial > 0) {
             int last_active = -1;
@@ -604,7 +626,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
             build_neighbor_list(sv->R, neighbor_lists, cfg->N, 2, 0);
             if (cfg->nb_rnap_initial > 0) {
                 build_neighbor_list_rnap_chrom(
-                    sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
+                    cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
                     cfg->rayon_ecrantage_LJ_chrom, t);
             }
             for (int i = 0; i < cfg->N; i++) {
@@ -613,6 +635,8 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
             fprintf(f->fichier_voisin, "\n");
         }
 
+        
+        
         polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
@@ -621,29 +645,38 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
 
         if (cfg->nb_rnap_initial > 0) {
             for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
+
                 if (sv->l_rnap[rnap] < 0)
                     continue;
                 int prout = 0;
-                polymere_brownian_motion_ring_force(
-                    sv->R_rnap[rnap], cfg->alpha, cfg->K_rnap, cfg->Delta,
-                    cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
-                    f->fichier_force_rnap, f->fichier_force_thermique,
-                    cfg->temperature);
-                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                            sv->R_rnap[rnap], 0, 4, f->fichier_force_rnap_2, t,
-                            cfg->periode_force);
-                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                            sv->R_rnap[rnap], 2, 6, f->fichier_force_rnap_2, t,
-                            cfg->periode_force);
-                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                            sv->R_rnap[rnap], 1, 5, f->fichier_force_rnap_2, t,
-                            cfg->periode_force);
-                liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                            sv->R_rnap[rnap], 3, 7, f->fichier_force_rnap_2, t,
-                            cfg->periode_force);
-                sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;
+                
+                // polymere_brownian_motion_ring_force(
+                //     sv->R_rnap[rnap], 0.5 * cfg->alpha, cfg->K_rnap, cfg->Delta,
+                //     cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
+                //     f->fichier_force_rnap, f->fichier_force_thermique,
+                //     cfg->temperature);
+
+                // printf("\n \n UN OURS \n \n ");
+
+                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                //             sv->R_rnap[rnap], 0, 4, f->fichier_force_rnap_2, t,
+                //             cfg->periode_force);
+                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                //             sv->R_rnap[rnap], 2, 6, f->fichier_force_rnap_2, t,
+                //             cfg->periode_force);
+                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                //             sv->R_rnap[rnap], 1, 5, f->fichier_force_rnap_2, t,
+                //             cfg->periode_force);
+                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                //             sv->R_rnap[rnap], 3, 7, f->fichier_force_rnap_2, t,
+                //             cfg->periode_force);
+                if(cfg->quench == 0)
+                {
+                    sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;
+                }
+
                 bond_rnap_bead_progressive_mvt(
-                    sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
+                    cfg, sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
                     cfg->Delta, sv->positions_bille_rnap[rnap],
                     sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
                     f->fichier_force_lea, cfg->periode_force, t);
@@ -659,13 +692,13 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                              cfg->attache, cfg->periode_force,
                              f->fichier_force_LJ, t);
         lennard_jones_forces_rnap(
-            sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
+            cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
             cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
             cfg->sigma6_rnap2, cfg->sigma12_rnap2,
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
         lennard_jones_forces_rnap_rnap(
-            sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
+            cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
             cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
             sv->l_rnap);
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new,
@@ -703,7 +736,7 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
         if (t%1000==0){
             build_neighbor_list(sv->R, neighbor_lists, cfg->N, 2, 0);
 
-            if(cfg->nb_rnap_initial > 0) {build_neighbor_list_rnap_chrom(sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap, cfg->rayon_ecrantage_LJ_chrom, t);}
+            if(cfg->nb_rnap_initial > 0) {build_neighbor_list_rnap_chrom(cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap, cfg->rayon_ecrantage_LJ_chrom, t);}
 
             for(int i = 0; i < cfg->N; i++){
                 fprintf(f->fichier_voisin,"%d ",neighbor_lists[i].count);
@@ -727,7 +760,7 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
         
         lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon, cfg->sigma6, cfg->sigma12, cfg->Delta, cfg->attache, cfg->periode_force, f->fichier_force_LJ, t);
         lennard_jones_forces_rnap(
-            sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
+            cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
             cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
             cfg->sigma6_rnap2, cfg->sigma12_rnap2,
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
@@ -805,7 +838,7 @@ void save_checkpoint(SimVars *sv, const Config *cfg, int t)
     // --- RNAP ---
 
     for (int i = 0; i < MAX_RNAP; i++)
-        for (int j = 0; j < RNAP_SUBUNITS; j++)
+        for (int j = 0; j < cfg->rnap_subunits; j++)
             for (int k = 0; k < 3; k++)
                 fwrite(&sv->R_rnap[i][j][k], sizeof(double), 1, f);
 
@@ -869,7 +902,7 @@ int load_checkpoint_data(SimVars *sv, Config *cfg, int *t_start)
 
     // RNAP matrices
     for (int i = 0; i < MAX_RNAP; i++)
-        for (int j = 0; j < RNAP_SUBUNITS; j++)
+        for (int j = 0; j < cfg->rnap_subunits; j++)
             for (int k = 0; k < 3; k++)
                 fread(&sv->R_rnap[i][j][k], sizeof(double), 1, f);
 

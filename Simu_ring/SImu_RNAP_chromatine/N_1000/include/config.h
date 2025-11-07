@@ -92,6 +92,7 @@ typedef struct {
     int temperature;
     int critere;
     int equilibriate; 
+    int quench;
 
     // --- périodes d'enregistrement
     int periode_enregistrement;

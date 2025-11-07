@@ -10,7 +10,7 @@
 
 
 #define MAX_RNAP 50
-#define RNAP_SUBUNITS 8 
+#define MAX_RNAP_SUBUNITS 8 
 #define DIM 3
 
 #ifdef CLUSTER
@@ -70,6 +70,7 @@ int main(int argc, char*argv[])
 
     open_simulation_files(&cfg, &f);
 
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////              Création chromatine           ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,14 +88,14 @@ int main(int argc, char*argv[])
             snprintf(
                 file_path,
                 sizeof(file_path),
-                "/home/elefloch/Simulation/Simu/Start/simulation_seed_%lu/brownian_LJ.lammpstrj",
+                "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_/brownian_LJ.lammpstrj",
                 cfg.seed
             );
         #else 
             snprintf(
                 file_path,
                 sizeof(file_path),
-                "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_%lu/brownian_LJ.lammpstrj",
+                "/Users/erwan/Documents/These/Cluster/Start/simulation_seed_%lu/brownian_LJ.lammpstrj",
                 cfg.seed
             );
         #endif

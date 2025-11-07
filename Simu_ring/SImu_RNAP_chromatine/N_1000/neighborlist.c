@@ -114,7 +114,8 @@ void free_neighbor_list_rnap(NeighborList_rnap** neighbor_lists, int nb_rnap, in
  * @param rayon_ecrantage_LJ_rnap Cutoff radius for interaction (Lennard-Jones screening)
  * @param t                       Current timestep (for debug or logging)
  */
-void build_neighbor_list_rnap_chrom(double ***R_rnap,
+void build_neighbor_list_rnap_chrom(const Config *cfg, 
+                                    double ***R_rnap,
                                     int nb_rnap,
                                     double **R,
                                     int N,
@@ -123,7 +124,7 @@ void build_neighbor_list_rnap_chrom(double ***R_rnap,
                                     int t)
 {
     const double rcut_sq = rayon_ecrantage_LJ_rnap * rayon_ecrantage_LJ_rnap;
-    const int rows = 8;  // Number of RNAP subunits per RNAP (should ideally be cfg->rnap_subunits)
+    const int rows = cfg->rnap_subunits;  
 
     for (int rnap = 0; rnap < nb_rnap; rnap++) {
         for (int subunit = 0; subunit < rows; subunit++) {
@@ -198,10 +199,7 @@ void build_neighbor_list_rnap(double **R, NeighborList *neighbor_lists, int N) {
 #include <stdlib.h>
 #include <assert.h>
 
-/**
- * Redimensionne la neighbor‐list des RNAP et ne
- * debugge (avec printf) que lorsque t == 40000.
- */
+
 void resize_neighbor_list_rnap(NeighborList_rnap ***plists,
                                int old_nb,
                                int new_nb,

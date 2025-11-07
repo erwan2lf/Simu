@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 #define MAX_RNAP 50
-#define RNAP_SUBUNITS 8 
+#define MAX_RNAP_SUBUNITS 8 
 #define DIM 3
 
 /**

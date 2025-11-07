@@ -1,5 +1,6 @@
 #ifndef NEIGHBORLIST_H
 #define NEIGHBORLIST_H
+#include "config.h"
 
 // Définition de vos deux structs :
 typedef struct {
@@ -19,7 +20,8 @@ typedef struct {
 void build_neighbor_list(double **R, NeighborList *neighbor_lists, int N, double RCUT, double SKIN);
 NeighborList_rnap** allocate_neighbor_list_rnap(int nb_rnap, int rows);
 void free_neighbor_list_rnap(NeighborList_rnap** neighbor_lists, int nb_rnap, int rows);
-void build_neighbor_list_rnap_chrom(double ***R_rnap,
+void build_neighbor_list_rnap_chrom(const Config *cfg,
+                                    double ***R_rnap,
                                     int nb_rnap,
                                     double **R,
                                     int N,

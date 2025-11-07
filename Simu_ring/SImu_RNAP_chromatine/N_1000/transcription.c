@@ -20,6 +20,9 @@
 #define BOX_SIZE 1e3
 #define SCALE_POS 1000.0
 #define PI 3.14159265358979323846
+#define MAX_RNAP 50
+#define MAX_RNAP_SUBUNITS 8 
+#define DIM 3
 
 
 
@@ -321,6 +324,7 @@ void liaison_sup(double alpha, double K_transpt, double Delta, double** r, int p
 
 
 void bond_rnap_bead_progressive_mvt(
+    const Config *cfg,
     double** R,                 // positions de la chromatine
     double** R_rnap,            // positions des sous-unités RNAP [8][3]
     double a_transpt,           // longueur à l'équilibre (si utile dans votre modèle)
@@ -334,7 +338,7 @@ void bond_rnap_bead_progressive_mvt(
     int periode_enregistrement_force,
     int t
 ) {
-    const int NB_SUBUNITS = 8;
+    const int NB_SUBUNITS = cfg->rnap_subunits;
     const double eps = 1e-12;   // évite division par 0
     (void)a; // pas utilisé ici, mais conservé pour compat
 
@@ -413,7 +417,7 @@ void bond_rnap_bead_progressive_mvt(
 }
 
 
-void lennard_jones_forces_rnap(double ***R_rnap, int nb_rnap, double **R, int N, NeighborList_rnap **neighbor_lists, double epsilon, double sigma6, double sigma12, double sigma6rnap2, double sigma12rnap2, double cut_rnap2, double Delta, int t, FILE* test, int T, FILE* fichier_force_rnap, int periode_enregistrement_force, int* l_rnap){
+void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap, double **R, int N, NeighborList_rnap **neighbor_lists, double epsilon, double sigma6, double sigma12, double sigma6rnap2, double sigma12rnap2, double cut_rnap2, double Delta, int t, FILE* test, int T, FILE* fichier_force_rnap, int periode_enregistrement_force, int* l_rnap){
     if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"TIMESTEP: %d\n",t);}
     double deplacement = 0.0;
     for (int rnap = 0; rnap < nb_rnap; rnap++) 
@@ -422,7 +426,7 @@ void lennard_jones_forces_rnap(double ***R_rnap, int nb_rnap, double **R, int N,
         
         if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"RNAP: %d\n",rnap);}
 
-        for (int subunit = 0; subunit<8 ; subunit++)
+        for (int subunit = 0; subunit < cfg->rnap_subunits ; subunit++)
         {
             if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"SUBUNIT: %d\n",subunit);}
 
@@ -471,7 +475,7 @@ void lennard_jones_forces_rnap(double ***R_rnap, int nb_rnap, double **R, int N,
                 Rj[1] -= Delta * f * dy;
                 Rj[2] -= Delta * f * dz;
             }
-            for (int subunit2 = 0; subunit2<8 ; subunit2++)
+            for (int subunit2 = 0; subunit2<cfg->rnap_subunits ; subunit2++)
             
             {
                 double epsilon_test_att = epsilon; 
@@ -504,7 +508,9 @@ void lennard_jones_forces_rnap(double ***R_rnap, int nb_rnap, double **R, int N,
     }
 }
 
-void lennard_jones_forces_rnap_rnap(double ***R_rnap,
+void lennard_jones_forces_rnap_rnap(
+                                    const Config *cfg,
+                                    double ***R_rnap,
                                     int nb_rnap,
                                     double epsilon,
                                     double sigma6,
@@ -514,19 +520,19 @@ void lennard_jones_forces_rnap_rnap(double ***R_rnap,
                                     int* l_rnap)
 {
 
-    double epsilon_rep = 10 * epsilon; 
-    double epsilon_att = epsilon; 
+    double epsilon_rep = 100 * epsilon; 
+    double epsilon_att =  epsilon; 
 
     for (int rnap_i = 0; rnap_i < nb_rnap; rnap_i++)
     {
         if(l_rnap[rnap_i] < 0){continue;}
-        for (int sub_i = 0; sub_i < 8; sub_i++) {
+        for (int sub_i = 0; sub_i < cfg->rnap_subunits; sub_i++) {
 
             double *Ri = R_rnap[rnap_i][sub_i];
 
             // --- Interactions RNAP_i ↔ RNAP_j (j > i pour éviter les doublons) ---
             for (int rnap_j = rnap_i + 1; rnap_j < nb_rnap; rnap_j++) {
-                for (int sub_j = 0; sub_j < 8; sub_j++) {
+                for (int sub_j = 0; sub_j < cfg->rnap_subunits; sub_j++) {
 
                     double *Rj = R_rnap[rnap_j][sub_j];
 
@@ -547,9 +553,11 @@ void lennard_jones_forces_rnap_rnap(double ***R_rnap,
                                     - 6.0 * epsilon_att * sigma6 / r8);
 
                     // Saturation (pour éviter les explosions)
-                    const double f_max = 600.0;
+                    const double f_max = 1000.0;
                     if (f > f_max)
                         f = f_max;
+
+                    // printf("f = %lf \n", f);
 
                     // Application symétrique de la force
                     Ri[0] += Delta * f * dx;
@@ -563,7 +571,7 @@ void lennard_jones_forces_rnap_rnap(double ***R_rnap,
             }
 
             // --- Auto-interactions entre sous-unités du même RNAP ---
-            for (int sub_j = 0; sub_j < 8; sub_j++) {
+            for (int sub_j = 0; sub_j < cfg->rnap_subunits; sub_j++) {
                 if (sub_i == sub_j) continue;
 
                 double *Rj = R_rnap[rnap_i][sub_j];
@@ -673,6 +681,54 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
         }
     }
 
+    if (cfg->quench == 1)
+    {
+        for ( ; sv->nb_rnap < cfg->nb_rnap_initial; sv->nb_rnap++) {
+
+            sv->l_rnap[sv->nb_rnap] = 1;
+
+            int old_nb = sv->nb_rnap;
+            int new_nb = sv->nb_rnap + 1;
+
+            // 🔧 Mise à jour dynamique de la liste des voisins RNAP
+            resize_neighbor_list_rnap(
+                &neighbor_lists_rnap,
+                old_nb,
+                new_nb,
+                cfg->N,      // nombre de lignes (typiquement nombre de monomères)
+                t            // pas de temps (pour debug)
+            );
+
+            // 💡 Position de la nouvelle RNAP
+            sv->positions_bille_rnap[sv->nb_rnap] = cfg->debut_segment + 3 * sv->nb_rnap;
+
+            // 🧬 Création physique de la nouvelle RNAP
+            creation_1_rnap_erwan(
+                cfg, sv->R, sv->nb_rnap, sv->positions_bille_rnap, sv->R_rnap,
+                cfg->N, cfg->rnap_subunits,
+                cfg->debut_segment, cfg->fin_segment, cfg->nb_rnap_initial
+            );
+        }
+    }
+
+
+
+
+
+
+    for(int i = 0; i < cfg->nb_rnap_initial; i++)
+    {
+        for(int j = 0; j < cfg->rnap_subunits; j++)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                printf("R_rnap[%d][%d][%d] = %lf ", i, j, k, sv->R_rnap[i][j][k]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////   💾 État initial et enregistrements initiaux   ////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -704,7 +760,6 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
 //     //////////////////////////////////////////////////////////////////////////////////////////////////////
 //     ///////////////////////////////////////   🧮 Boucle principale   //////////////////////////////////////
 //     //////////////////////////////////////////////////////////////////////////////////////////////////////
-
 calcul(sv, cfg, f, neighbor_lists, neighbor_lists_rnap, t_start);
 
 //     endtoend /= cfg->T_endtoend;

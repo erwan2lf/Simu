@@ -650,26 +650,28 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                     continue;
                 int prout = 0;
                 
-                // polymere_brownian_motion_ring_force(
-                //     sv->R_rnap[rnap], 0.5 * cfg->alpha, cfg->K_rnap, cfg->Delta,
-                //     cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
-                //     f->fichier_force_rnap, f->fichier_force_thermique,
-                //     cfg->temperature);
+                if(cfg->rnap_subunits == 8)
+                {
+                    polymere_brownian_motion_ring_force(
+                        sv->R_rnap[rnap], 0.5 * cfg->alpha, cfg->K_rnap, cfg->Delta,
+                        cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
+                        f->fichier_force_rnap, f->fichier_force_thermique,
+                        cfg->temperature);
 
-                // printf("\n \n UN OURS \n \n ");
-
-                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                //             sv->R_rnap[rnap], 0, 4, f->fichier_force_rnap_2, t,
-                //             cfg->periode_force);
-                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                //             sv->R_rnap[rnap], 2, 6, f->fichier_force_rnap_2, t,
-                //             cfg->periode_force);
-                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                //             sv->R_rnap[rnap], 1, 5, f->fichier_force_rnap_2, t,
-                //             cfg->periode_force);
-                // liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                //             sv->R_rnap[rnap], 3, 7, f->fichier_force_rnap_2, t,
-                //             cfg->periode_force);
+                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                                sv->R_rnap[rnap], 0, 4, f->fichier_force_rnap_2, t,
+                                cfg->periode_force);
+                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                                sv->R_rnap[rnap], 2, 6, f->fichier_force_rnap_2, t,
+                                cfg->periode_force);
+                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                                sv->R_rnap[rnap], 1, 5, f->fichier_force_rnap_2, t,
+                                cfg->periode_force);
+                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                                sv->R_rnap[rnap], 3, 7, f->fichier_force_rnap_2, t,
+                                cfg->periode_force);
+                }
+               
                 if(cfg->quench == 0)
                 {
                     sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;

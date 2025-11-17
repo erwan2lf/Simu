@@ -77,45 +77,45 @@ int main(int argc, char*argv[])
 
 
     // creation_polymere_droit(cfg.N, cfg.a, cfg.ecart_train, sv.R);
-    // creation_polymere_aleatoire(cfg.N, cfg.a, sv.R);
+    creation_polymere_aleatoire(cfg.N, cfg.a, sv.R);
     // creation_fractal_globule(N, a, ecart, R);
 
     if (cfg.resume_from_checkpoint == 0)
     {
-        char file_path[512];
+        // char file_path[512];
     
-        #ifdef CLUSTER
-            snprintf(
-                file_path,
-                sizeof(file_path),
-                "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_/brownian_LJ.lammpstrj",
-                cfg.seed
-            );
-        #else 
-            snprintf(
-                file_path,
-                sizeof(file_path),
-                "/Users/erwan/Documents/These/Cluster/Start/simulation_seed_%lu/brownian_LJ.lammpstrj",
-                cfg.seed
-            );
-        #endif
+        // #ifdef CLUSTER
+        //     snprintf(
+        //         file_path,
+        //         sizeof(file_path),
+        //         "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_/brownian_LJ.lammpstrj",
+        //         cfg.seed
+        //     );
+        // #else 
+        //     snprintf(
+        //         file_path,
+        //         sizeof(file_path),
+        //         "/Users/erwan/Documents/These/Cluster/Start/simulation_seed_%lu/brownian_LJ.lammpstrj",
+        //         cfg.seed
+        //     );
+        // #endif
 
-        printf("📂 Ouverture du fichier : %s\n", file_path);
+        // printf("📂 Ouverture du fichier : %s\n", file_path);
 
-        double** R_matrix = recuperer_derniere_structure(file_path, cfg.N);
-        if (R_matrix == NULL)
-        {
-            fprintf(stderr, "Error: Could not read the structure from the file.\n");
-            return 1;
-        }
-        for (int i = 0; i < cfg.N; i++)
-        {
-            for (int j = 0; j < 3; j++)
-            {
-                sv.R[i][j] = R_matrix[i][j];
-            }
-        }
-        free_matrix_if_allocated(&R_matrix, cfg.N);
+        // double** R_matrix = recuperer_derniere_structure(file_path, cfg.N);
+        // if (R_matrix == NULL)
+        // {
+        //     fprintf(stderr, "Error: Could not read the structure from the file.\n");
+        //     return 1;
+        // }
+        // for (int i = 0; i < cfg.N; i++)
+        // {
+        //     for (int j = 0; j < 3; j++)
+        //     {
+        //         sv.R[i][j] = R_matrix[i][j];
+        //     }
+        // }
+        // free_matrix_if_allocated(&R_matrix, cfg.N);
 
     }
     

@@ -140,6 +140,10 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
     sv->compteur_train = 0; 
     sv->variable_test_2 = 0;
     sv->variable_test_3 = 0;
+
+
+    sv->cdm_conf = malloc(3 * sizeof(double));
+    sv->nb_move_large = 0;
 }
 
 void cleanup_sim_vars(SimVars *sv, Config *cfg)
@@ -512,9 +516,7 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
 
 
-void calcul(SimVars *sv, const Config *cfg, const Files *f,
-             NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap,
-             int t_start)
+void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap, int t_start)
 {
     clock_t start_2, end_2;
     clock_t start, end;
@@ -522,7 +524,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
 
     struct timespec chrono_start, last, now;
     double interval = 60.0; // affichage de progression toutes les 60 s
-    double checkpoint_limit_h = 48; // 47h30min
+    double checkpoint_limit_h = 47; // 47h30min
     double checkpoint_limit_s = checkpoint_limit_h * 3600.0;
 
     // --- Initialisation du timer global ---
@@ -637,12 +639,26 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
 
         
         
+        confinement_sphere(cfg, sv, t);
+
         polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
             cfg->T, f->fichier_force, cfg->periode_force,
             f->fichier_force_thermique, cfg->temperature);
 
+        // double d989 = distance2(sv->R[989], sv->R[990]);
+        // double d991 = distance2(sv->R[991], sv->R[990]);
+
+        // double d99 = distance2(sv->R[100], sv->R[99]);
+        // double d100 = distance2(sv->R[101], sv->R[100]);
+     
+        // printf("d(989,990) = %f   d(991,990) = %f\n", sqrt(d989), sqrt(d991));
+
+
+        // printf("d(99,100) = %f   d(101,100) = %f\n", sqrt(d99), sqrt(d100));
+
+        
         if (cfg->nb_rnap_initial > 0) {
             for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
 
@@ -768,10 +784,6 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new, sv->compteur_grand_deplacement);
-
-        if(cfg->confinement == 1){
-            confinement_sphere(sv->R, cfg->N, cfg->r_sphere);
-        }
 
 
         end = clock();  
@@ -930,4 +942,176 @@ int load_checkpoint_data(SimVars *sv, Config *cfg, int *t_start)
 
     fclose(f);
     return 1;
+}
+
+void confinement_sphere(const Config *cfg, SimVars *sv, int t)
+{
+    // --- INITIALISATION DU CENTRE DE MASSE À t = 0 ---
+    if (t == 0)
+    {
+        sv->cdm_conf[0] = 0.0;
+        sv->cdm_conf[1] = 0.0;
+        sv->cdm_conf[2] = 0.0;
+
+        for (int i = 0; i < cfg->N; i++)
+        {
+            sv->cdm_conf[0] += sv->R[i][0];
+            sv->cdm_conf[1] += sv->R[i][1];
+            sv->cdm_conf[2] += sv->R[i][2];
+        }
+        sv->cdm_conf[0] /= cfg->N;
+        sv->cdm_conf[1] /= cfg->N;
+        sv->cdm_conf[2] /= cfg->N;
+    }
+
+    // --- PARAMÈTRES ---
+    double R = cfg->r_conf;
+    double sigma = cfg->sigma_conf;
+    double eps = cfg->epsilon_conf;
+
+    double sigma6 = pow(sigma, 6);
+    double sigma12 = sigma6 * sigma6;
+
+    // seuil de déplacement (important)
+    double seuil = 20 * cfg->a;
+
+    // compteur local
+    int deplacement_trop_grand = 0;
+
+
+    // --- BOUCLE SUR LES MONOMÈRES ---
+    for (int i = 0; i < cfg->N; i++)
+    {
+        double dx = sv->R[i][0] - sv->cdm_conf[0];
+        double dy = sv->R[i][1] - sv->cdm_conf[1];
+        double dz = sv->R[i][2] - sv->cdm_conf[2];
+
+        double d = sqrt(dx*dx + dy*dy + dz*dz);
+        double wall_dist = R - d;
+
+        if (wall_dist < sigma)  
+        {
+            double inv = sigma / (sigma - wall_dist);
+            double inv6 = pow(inv, 6);
+            double inv12 = inv6 * inv6;
+
+            double delta = 0.02 * (2.0 * inv12 - inv6);
+
+            // clamp pour éviter les explosions
+            double delta_max = 1e-4 * cfg->a;    // 5% de la taille d'une bille
+            if (delta > delta_max)
+                delta = delta_max;
+
+            // direction vers le centre
+            double nx = -dx / d;
+            double ny = -dy / d;
+            double nz = -dz / d;
+
+            // --- On calcule le déplacement ---
+            double dx_move = delta * nx;
+            double dy_move = delta * ny;
+            double dz_move = delta * nz;
+
+            double move_norm = sqrt(dx_move*dx_move + dy_move*dy_move + dz_move*dz_move);
+
+            // --- Vérification du déplacement ---
+            if (move_norm > seuil)
+                deplacement_trop_grand++;
+
+            // --- On applique le déplacement ---
+            sv->R[i][0] += dx_move;
+            sv->R[i][1] += dy_move;
+            sv->R[i][2] += dz_move;
+
+            // Sécurité : clamp sur la sphère
+            double d2 = sqrt(
+                (sv->R[i][0] - sv->cdm_conf[0]) * (sv->R[i][0] - sv->cdm_conf[0]) +
+                (sv->R[i][1] - sv->cdm_conf[1]) * (sv->R[i][1] - sv->cdm_conf[1]) +
+                (sv->R[i][2] - sv->cdm_conf[2]) * (sv->R[i][2] - sv->cdm_conf[2])
+            );
+
+            if (d2 > R)
+            {
+                double k = R / d2;
+                sv->R[i][0] = sv->cdm_conf[0] + k * (sv->R[i][0] - sv->cdm_conf[0]);
+                sv->R[i][1] = sv->cdm_conf[1] + k * (sv->R[i][1] - sv->cdm_conf[1]);
+                sv->R[i][2] = sv->cdm_conf[2] + k * (sv->R[i][2] - sv->cdm_conf[2]);
+            }
+        }
+    }
+
+    // Boucle sur les RNAP
+
+    for (int i = 0; i < MAX_RNAP; i++)
+    {
+        if(sv->l_rnap < 0)
+            continue;
+        
+        for (int j = 0; j < cfg->rnap_subunits; j++ )
+        {
+            double dx = sv->R_rnap[i][j][0] - sv->cdm_conf[0];
+            double dy = sv->R_rnap[i][j][1] - sv->cdm_conf[1];
+            double dz = sv->R_rnap[i][j][2] - sv->cdm_conf[2];
+
+            double d = sqrt(dx*dx + dy*dy + dz*dz);
+            double wall_dist = R - d;
+
+            if (wall_dist < sigma)
+            {
+
+                double inv = sigma / (sigma - wall_dist);
+                double inv6 = pow(inv, 6);
+                double inv12 = inv6 * inv6;
+
+                double delta = 0.02 * (2.0 * inv12 - inv6);
+
+                // clamp pour éviter les explosions
+                double delta_max = 1e-4 * cfg->a;    // 5% de la taille d'une bille
+                if (delta > delta_max)
+                    delta = delta_max;
+
+                // direction vers le centre
+                double nx = -dx / d;
+                double ny = -dy / d;
+                double nz = -dz / d;
+            
+                // --- On calcule le déplacement ---
+                double dx_move = delta * nx;
+                double dy_move = delta * ny;
+                double dz_move = delta * nz;
+
+                double move_norm = sqrt(dx_move*dx_move + dy_move*dy_move + dz_move*dz_move);
+
+                // --- Vérification du déplacement ---
+                if (move_norm > seuil)
+                    deplacement_trop_grand++;
+
+                // --- On applique le déplacement ---
+                sv->R_rnap[i][j][0] += dx_move;
+                sv->R_rnap[i][j][1] += dy_move;
+                sv->R_rnap[i][j][2] += dz_move;
+
+                double d2 = sqrt(
+                    (sv->R_rnap[i][j][0] - sv->cdm_conf[0]) * (sv->R_rnap[i][j][0] - sv->cdm_conf[0]) +
+                    (sv->R_rnap[i][j][1] - sv->cdm_conf[1]) * (sv->R_rnap[i][j][1] - sv->cdm_conf[1]) +
+                    (sv->R_rnap[i][j][2] - sv->cdm_conf[2]) * (sv->R_rnap[i][j][2] - sv->cdm_conf[2])
+                );
+                
+                if (d2 > R)
+                {
+                    double k = R / d2;
+                    sv->R_rnap[i][j][0] = sv->cdm_conf[0] + k * (sv->R_rnap[i][j][0] - sv->cdm_conf[0]);
+                    sv->R_rnap[i][j][1] = sv->cdm_conf[1] + k * (sv->R_rnap[i][j][1] - sv->cdm_conf[1]);
+                    sv->R_rnap[i][j][2] = sv->cdm_conf[2] + k * (sv->R_rnap[i][j][2] - sv->cdm_conf[2]);
+                }
+            }
+        }
+    }
+
+    // --- On stocke le compteur dans sv ---
+    sv->nb_move_large += deplacement_trop_grand;
+
+    // // Tu peux afficher périodiquement
+    // if (t % 1000 == 0 && t > 0)
+    //     printf("[CONF] Grandes corrections cumulées = %d\n", sv->nb_move_large);
 }

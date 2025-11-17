@@ -43,7 +43,7 @@ Config parse_config(int argc, char *argv[])
 
     cfg.nbr_total_simu  = 1; 
     cfg.N               = 1000;
-    cfg.a               = 4;
+    cfg.a               = 1;
     cfg.alpha           = 1.0;
     cfg.K               = 1000.0;
     cfg.K_rnap          = 500.0;
@@ -56,11 +56,14 @@ Config parse_config(int argc, char *argv[])
     cfg.sigma12 = pow(cfg.sigma,12);
     cfg.debut_segment   = 300;
     cfg.fin_segment     = 400;
-    cfg.rnap_subunits   = 1;
+    cfg.rnap_subunits   = 8;
     cfg.rayon_ecrantage_LJ_chrom = 2.0;
     cfg.rayon_ecrantage_LJ_rnap  = 2.0;
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
+    cfg.r_conf = 7.5;
+    cfg.epsilon_conf = 0.0024; 
+    cfg.sigma_conf = cfg.a;
 
     // print_header("Paramètres par défaut");
 
@@ -90,7 +93,7 @@ Config parse_config(int argc, char *argv[])
 
 
     cfg.attache = 0; // attache
-    cfg.confinement = 0; // confinement
+    cfg.confinement = 1; // confinement
     cfg.plan = 0; // plan
     cfg.bending = 0; // bending
     cfg.critere = 1; // critere
@@ -111,7 +114,7 @@ Config parse_config(int argc, char *argv[])
 
     if(cfg.nb_rnap_initial == 0)
     {
-        cfg.T = 500000;
+        cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
         cfg.T_eq = 0;
 
@@ -125,8 +128,6 @@ Config parse_config(int argc, char *argv[])
         cfg.periode_centre_de_masse = cfg.T;       // cdm
         cfg.periode_voisin = cfg.T;       // voisins
         cfg.periode_force = cfg.T;       // force
-
-
     }
     else
     {

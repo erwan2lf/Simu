@@ -82,8 +82,15 @@ typedef struct {
     int T_voisin;
 
 
+    double *cdm_conf;
+    int nb_move_large;
+
+
     
 } SimVars;
+
+
+void confinement_sphere(const Config *cfg, SimVars *sv, int t);
 
 // Prototypes des fonctions de simulation
 void init_sim_vars      (SimVars *sv, Config *cfg);

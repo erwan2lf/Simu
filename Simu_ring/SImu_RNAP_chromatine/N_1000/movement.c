@@ -140,24 +140,6 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
     }
 }
 
-void confinement_sphere(double **R, int N, double r_sphere){
-    double origine[3] = {0,0,0};
-    for (int i = 0; i < N; i++){
-        if(distance(R[i], origine) > r_sphere){
-            for (int j = 0; j < 3; j++){
-                if (fabs(R[i][j]) > r_sphere){
-                    if (R[i][j] < 0){
-                        R[i][j] = - r_sphere - (R[i][j] + r_sphere);
-                    }
-                    else{
-                        R[i][j] = r_sphere - (R[i][j] - r_sphere);
-                    }
-                }
-            }
-        }
-    }
-}
-
 double** gaz_motion(double **R, int N, double ** r_new, double Delta, int plan, int attache){
 
     if(attache == 1){

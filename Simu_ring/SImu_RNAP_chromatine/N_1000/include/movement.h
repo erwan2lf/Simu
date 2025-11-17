@@ -13,6 +13,5 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
                               int t, FILE *test, int bending, int truc, int T,
                               FILE *fichier_force, int periode_enregistrement_force,
                               FILE *fichier_force_thermique, int temperature);
-void confinement_sphere(double **R, int N, double r_sphere);
 double** gaz_motion(double **R, int N, double ** r_new, double Delta, int plan, int attache);
 #endif // MES_FONCTIONS_H

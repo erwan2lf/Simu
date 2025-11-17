@@ -20,6 +20,12 @@ typedef struct {
     double sigma12;
     int Nm;
     double r_sphere; 
+
+    // Confinement sphère
+    double r_conf;
+    double epsilon_conf; 
+    double sigma_conf;
+
     
     
     // --- Paramètres RNAP

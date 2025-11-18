@@ -25,7 +25,7 @@ Config parse_config(int argc, char *argv[])
     cfg.nb_rnap_initial = atoi(argv[1]);
     cfg.vitesse_rnap    = atof(argv[2]); 
     cfg.K_transpt       = atof(argv[3]); 
-    cfg.seed            = strtoul(argv[4], NULL, 10); 
+    cfg.seed            = strtoul(argv[4], NULL, 10);
 
     // print_header("Lecture des arguments (définis dans .bash)");
 
@@ -61,7 +61,7 @@ Config parse_config(int argc, char *argv[])
     cfg.rayon_ecrantage_LJ_rnap  = 2.0;
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
-    cfg.r_conf = 7.5;
+    cfg.r_conf = 10.77;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
 

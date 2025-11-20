@@ -120,11 +120,11 @@ void free_matrix_3D(double ***matrix, int rows, int cols)
  * Les coordonnées sont divisées par SCALE_POS pour conversion d’échelle.
  * ------------------------------------------------------------------------------
  */
-void print_position(FILE *f, int id, int type, double x, double y, double z)
+void print_position(FILE *f, int id, int type, double x, double y, double z, int marqueur)
 {
     if (!f)
         return;
-    fprintf(f, "%d %d %lf %lf %lf\n", id, type, x / SCALE_POS, y / SCALE_POS, z / SCALE_POS);
+    fprintf(f, "%d %d %lf %lf %lf %d\n", id, type, x / SCALE_POS, y / SCALE_POS, z / SCALE_POS, marqueur);
 }
 
 
@@ -148,15 +148,17 @@ void print_position(FILE *f, int id, int type, double x, double y, double z)
  * ------------------------------------------------------------------------------------------------
  */
 void enregistrement_RNAP(FILE *fichier,
-                         double **R,
-                         int N,
-                         double ***R_rnap,
-                         int nb_rnap,
-                         int t,
-                         int *positions_bille_rnap,
-                         int nb_subunits,
-                         int nb_rnap_initial,
-                         int *l_rnap)
+                        double **R,
+                        int N,
+                        double ***R_rnap,
+                        int nb_rnap,
+                        int t,
+                        int *positions_bille_rnap,
+                        int nb_subunits,
+                        int nb_rnap_initial,
+                        int *l_rnap, 
+                        SimVars *sv,
+                        const Config *cfg)
 {
     if (!fichier)
     {
@@ -176,10 +178,13 @@ void enregistrement_RNAP(FILE *fichier,
     fprintf(fichier, "%lf %lf\n", -BOX_SIZE, BOX_SIZE);
     fprintf(fichier, "ITEM: ATOMS id type xs ys zs\n");
 
+
     // === 1️⃣ Monomères de la chaîne ===
     for (int i = 0; i < N; i++)
-        print_position(fichier, i, 1, R[i][0], R[i][1], R[i][2]);
-
+    {
+        print_position(fichier, i, 1, R[i][0], R[i][1], R[i][2], sv->is_rnap[i]);
+    }
+    
     // === 2️⃣ RNAPs (actives, inactives, sorties) ===
     int count = N;
     int type = 3;
@@ -195,29 +200,29 @@ void enregistrement_RNAP(FILE *fichier,
         if (state >= 1)
         {
             // Monomères liés à la RNAP
-            print_position(fichier, count++, 2, R[mono_pos][0], R[mono_pos][1], R[mono_pos][2]);
-            print_position(fichier, count++, 2, R[mono_pos + 1][0], R[mono_pos + 1][1], R[mono_pos + 1][2]);
+            print_position(fichier, count++, 2, R[mono_pos][0], R[mono_pos][1], R[mono_pos][2], 0);
+            print_position(fichier, count++, 2, R[mono_pos + 1][0], R[mono_pos + 1][1], R[mono_pos + 1][2], 0);
 
             // Sous-unités
             for (int s = 0; s < nb_subunits; s++)
                 print_position(fichier, count++, type,
                                R_rnap[rnap][s][0],
                                R_rnap[rnap][s][1],
-                               R_rnap[rnap][s][2]);
+                               R_rnap[rnap][s][2], 0);
         }
 
         // --- RNAP inactive temporairement ---
         else if (state == -1)
         {
             for (int i = 0; i < nb_subunits + 2; i++)
-                print_position(fichier, count++, 2, 0.0, 0.0, 0.0);
+                print_position(fichier, count++, 2, 0.0, 0.0, 0.0, 0);
         }
 
         // --- RNAP sortie définitive ---
         else if (state == -2)
         {
             for (int i = 0; i < nb_subunits + 2; i++)
-                print_position(fichier, count++, 99, 0.0, 0.0, 0.0);
+                print_position(fichier, count++, 99, 0.0, 0.0, 0.0, 0);
         }
 
         type++;
@@ -744,7 +749,9 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
             sv->positions_bille_rnap,   
             cfg->rnap_subunits,         
             cfg->nb_rnap_initial,      
-            sv->l_rnap
+            sv->l_rnap,
+            sv,
+            cfg
         );
     }
 

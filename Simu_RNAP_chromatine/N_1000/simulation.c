@@ -132,6 +132,7 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
     sv->R_rnap_new = allocate_matrix_3D(MAX_RNAP, cfg->rnap_subunits);
     sv->avancement_transcription = calloc(MAX_RNAP, sizeof(double));
     sv->compteur_mono_rnap = calloc(cfg->N, sizeof(int));
+    sv->is_rnap = calloc(cfg->N, sizeof(int));
 
 
     // Compteur 
@@ -182,6 +183,7 @@ void cleanup_sim_vars(SimVars *sv, Config *cfg)
     free_if_allocated((void**)&sv->l_rnap);
     free_if_allocated((void**)&sv->positions_bille_rnap);
     free_if_allocated((void**)&sv->avancement_transcription);
+    free_if_allocated((void**)&sv->is_rnap);
 
     // --- R_monomere_arrays ---
     if (sv->R_monomere_arrays)
@@ -502,7 +504,9 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
                     sv->positions_bille_rnap,   
                     cfg->rnap_subunits,         
                     cfg->nb_rnap_initial,      
-                    sv->l_rnap           
+                    sv->l_rnap, 
+                    sv,
+                    cfg         
                 );
                 // enregistrement_RNAP_position(f->fichier_rnap, sv->nb_rnap, cfg->T_eq + t, sv->positions_bille_rnap, sv->avancement_transcription[0]);
             }
@@ -637,10 +641,11 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
             fprintf(f->fichier_voisin, "\n");
         }
 
+        if (cfg->confinement == 1)
+        {
+             confinement_sphere(cfg, sv, t);
+        }
         
-        
-        confinement_sphere(cfg, sv, t);
-
         polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
@@ -659,12 +664,14 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
         // printf("d(99,100) = %f   d(101,100) = %f\n", sqrt(d99), sqrt(d100));
 
         
-        if (cfg->nb_rnap_initial > 0) {
-            for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
-
+        if (cfg->nb_rnap_initial > 0)
+        {
+            for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++)
+            {
                 if (sv->l_rnap[rnap] < 0)
                     continue;
                 int prout = 0;
+                
                 
                 if(cfg->rnap_subunits == 8)
                 {
@@ -699,8 +706,14 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
                     sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
                     f->fichier_force_lea, cfg->periode_force, t);
                 if (1 - sv->avancement_transcription[rnap] < 1e-7) {
+                    sv->is_rnap[sv->positions_bille_rnap[rnap]] = 0;
                     retirer_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap,
                                  rnap, prout, t);
+                }
+
+                if (sv->positions_bille_rnap[rnap] >= 0 && sv->positions_bille_rnap[rnap] < cfg->N)
+                {
+                    sv->is_rnap[sv->positions_bille_rnap[rnap]] = 1; 
                 }
             }
         }
@@ -810,7 +823,9 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
                     sv->positions_bille_rnap,   
                     cfg->rnap_subunits,         
                     cfg->nb_rnap_initial,      
-                    sv->l_rnap                  
+                    sv->l_rnap, 
+                    sv,
+                    cfg               
                 );
                 // enregistrement_RNAP_position(f->fichier_rnap, sv->nb_rnap, t, sv->positions_bille_rnap, sv->avancement_transcription[0]);
             }

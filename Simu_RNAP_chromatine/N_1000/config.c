@@ -4,6 +4,8 @@
 #include <math.h>
 #include "config.h"
 
+#define MAX_RNAP 50
+
 
 Config parse_config(int argc, char *argv[])
 {
@@ -114,7 +116,10 @@ Config parse_config(int argc, char *argv[])
 
     if(cfg.nb_rnap_initial == 0)
     {
-        cfg.T = 13200000;
+
+        cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
+        cfg.T = cfg.T + cfg.T/10;
+        // cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
         cfg.T_eq = 0;
 

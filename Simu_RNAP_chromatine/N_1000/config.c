@@ -18,7 +18,7 @@ Config parse_config(int argc, char *argv[])
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    if (argc < 5)
+    if (argc < 4)
     {
         fprintf(stderr, "Usage : %s nb_rnap vitesse_rnap seed\n", argv[0]); // Vérification du bon nombre d'arguments
         exit(1);
@@ -27,8 +27,7 @@ Config parse_config(int argc, char *argv[])
     cfg.nb_rnap_initial = atoi(argv[1]);
     cfg.vitesse_rnap    = atof(argv[2]); 
     cfg.K_transpt       = atof(argv[3]); 
-    cfg.n_c             = atoi(argv[4]);
-    cfg.seed            = strtoul(argv[5], NULL, 10);
+    cfg.seed            = strtoul(argv[4], NULL, 10);
 
     // print_header("Lecture des arguments (définis dans .bash)");
 

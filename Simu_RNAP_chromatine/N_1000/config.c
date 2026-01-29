@@ -51,7 +51,7 @@ Config parse_config(int argc, char *argv[])
     cfg.a               = 1;
     cfg.alpha           = 1.0;
     cfg.K               = 1000.0;
-    cfg.K_c              = 100.0;
+    cfg.K_c             = 100.0;
     cfg.K_rnap          = 4;
     cfg.K_bend          = 0.0;
     cfg.Delta           = 1e-4;
@@ -115,7 +115,7 @@ Config parse_config(int argc, char *argv[])
 
     // print_header("Durées et périodicitéss");
 
-    int N_rec = 1000; 
+    int N_rec = 10000;
     int k;
 
 
@@ -128,6 +128,8 @@ Config parse_config(int argc, char *argv[])
         // cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
         cfg.T_eq = 0;
+
+        cfg.T = 22000000;
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.periode_enregistrement = k;  // periode_enregistrement

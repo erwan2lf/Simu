@@ -168,3 +168,40 @@ double** gaz_motion(double **R, int N, double ** r_new, double Delta, int plan, 
 
     return r_new;
 }
+
+void interchain_harmonic_spring(double **R, int N,
+                                int *idx, int n_idx,
+                                double Kc, double Delta, 
+                                int t)
+    {
+        int eps = 1e-12;
+        for( int m = 0; m < n_idx; m++)
+        {
+            int i = idx[m];
+            if(i<0 || i>=N) continue;
+
+            int a = i; 
+            int b = i + N;
+
+            double dx = R[b][0] - R[a][0];
+            double dy = R[b][1] - R[a][1];
+            double dz = R[b][2] - R[a][2];
+            
+            double r2 = distance2(R[b], R[a]);
+            double r  = distance(R[b], R[a]);
+
+            if (r < eps) continue;
+
+            double fx = Kc * dx *(1.0 - 1/r);
+            double fy = Kc * dy *(1.0 - 1/r);
+            double fz = Kc * dz *(1.0 - 1/r);
+
+            R[a][0] += Delta * fx; 
+            R[a][1] += Delta * fy; 
+            R[a][2] += Delta * fz; 
+
+            R[b][0] -= Delta * fx;
+            R[b][1] -= Delta * fy;  
+            R[b][2] -= Delta * fz; 
+        }
+    }

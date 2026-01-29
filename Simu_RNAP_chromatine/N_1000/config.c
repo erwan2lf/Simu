@@ -27,7 +27,8 @@ Config parse_config(int argc, char *argv[])
     cfg.nb_rnap_initial = atoi(argv[1]);
     cfg.vitesse_rnap    = atof(argv[2]); 
     cfg.K_transpt       = atof(argv[3]); 
-    cfg.seed            = strtoul(argv[4], NULL, 10);
+    cfg.n_c             = atoi(argv[4]);
+    cfg.seed            = strtoul(argv[5], NULL, 10);
 
     // print_header("Lecture des arguments (définis dans .bash)");
 
@@ -43,12 +44,15 @@ Config parse_config(int argc, char *argv[])
     ////////////////////////////////////////////////////////////////////////////////////////            Paramètres par défaut           ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
     cfg.nbr_total_simu  = 1; 
     cfg.N               = 1000;
     cfg.a               = 1;
     cfg.alpha           = 1.0;
     cfg.K               = 1000.0;
-    cfg.K_rnap          = 500.0;
+    cfg.K_c              = 100.0;
+    cfg.K_rnap          = 4;
     cfg.K_bend          = 0.0;
     cfg.Delta           = 1e-4;
     cfg.epsilon         = 0.0024;
@@ -95,7 +99,7 @@ Config parse_config(int argc, char *argv[])
 
 
     cfg.attache = 0; // attache
-    cfg.confinement = 1; // confinement
+    cfg.confinement = 0; // confinement
     cfg.plan = 0; // plan
     cfg.bending = 0; // bending
     cfg.critere = 1; // critere
@@ -113,6 +117,8 @@ Config parse_config(int argc, char *argv[])
 
     int N_rec = 1000; 
     int k;
+
+
 
     if(cfg.nb_rnap_initial == 0)
     {

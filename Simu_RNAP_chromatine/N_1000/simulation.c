@@ -37,7 +37,7 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
 
 
     sv->bending_forces = allocate_matrix(cfg->N, 3);     
-    sv->R = allocate_matrix(cfg->N, 3);
+    sv->R = allocate_matrix(2*cfg->N, 3);
     sv->R_new = allocate_matrix(cfg->N, 3);
     sv->t_link = allocate_matrix(cfg->N-1,3);
     sv->R_matrix = (double**)malloc(sizeof(double*)); 
@@ -145,13 +145,17 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
 
     sv->cdm_conf = malloc(3 * sizeof(double));
     sv->nb_move_large = 0;
+
+    // double chaine
+
+    sv->links = malloc(10*sizeof(int));
 }
 
 void cleanup_sim_vars(SimVars *sv, Config *cfg)
 {
     // --- Matrices simples ---
     free_matrix_if_allocated(&sv->bending_forces, cfg->N);
-    free_matrix_if_allocated(&sv->R, cfg->N);
+    free_matrix_if_allocated(&sv->R, 2 * cfg->N);
     free_matrix_if_allocated(&sv->R_new, cfg->N);
     free_matrix_if_allocated(&sv->t_link, cfg->N - 1);
     free_matrix_if_allocated(&sv->Rbb, sv->T_correlation);
@@ -511,7 +515,7 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
                 // enregistrement_RNAP_position(f->fichier_rnap, sv->nb_rnap, cfg->T_eq + t, sv->positions_bille_rnap, sv->avancement_transcription[0]);
             }
             else{
-                enregistrement(f->fichier, sv->R, cfg->N, cfg->T_eq + t);
+                enregistrement(f->fichier, sv->R, 2 * cfg->N, cfg->T_eq + t);
             }
         }
 }
@@ -522,6 +526,17 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
 void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap, int t_start)
 {
+
+    sv->links[0] = 0;
+    sv->links[1] = 100;
+    sv->links[2] = 200;
+    sv->links[3] = 300;
+    sv->links[4] = 400;
+    sv->links[5] = 500;
+    sv->links[6] = 600;
+    sv->links[7] = 700;
+    sv->links[8] = 800;
+    sv->links[9] = 900;
     clock_t start_2, end_2;
     clock_t start, end;
     double duree_boucle, duree_tot = 0, temps_restant;
@@ -539,14 +554,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
     printf("▶️  Simulation lancée à t=%d avec limite de %.1f h (%.0f s)\n",
            time_depart, checkpoint_limit_h, checkpoint_limit_s);
 
-    
-    
-   
-
     for (int t = time_depart; t < cfg->T; t++) {
-
-        
-        // printf("R_rnap[0][0][0] = %lf \n ", sv->R_rnap[0][0][0]);
 
         
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -592,7 +600,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
         
 
         // -----------------------------------------------------------------
-        //  🧩 Code de simulation existant
+        //                      Code de simulation
         // -----------------------------------------------------------------
         
         // Ajout conditionnel des RNAP
@@ -629,7 +637,9 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
         start = clock();
 
         if (t % 1000 == 0) {
+
             build_neighbor_list(sv->R, neighbor_lists, cfg->N, 2, 0);
+
             if (cfg->nb_rnap_initial > 0) {
                 build_neighbor_list_rnap_chrom(
                     cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
@@ -652,18 +662,18 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
             cfg->T, f->fichier_force, cfg->periode_force,
             f->fichier_force_thermique, cfg->temperature);
 
-        // double d989 = distance2(sv->R[989], sv->R[990]);
-        // double d991 = distance2(sv->R[991], sv->R[990]);
+        polymere_brownian_motion(
+            sv->R + cfg->N, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
+            cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
+            cfg->T, f->fichier_force, cfg->periode_force,
+            f->fichier_force_thermique, cfg->temperature);
 
-        // double d99 = distance2(sv->R[100], sv->R[99]);
-        // double d100 = distance2(sv->R[101], sv->R[100]);
-     
-        // printf("d(989,990) = %f   d(991,990) = %f\n", sqrt(d989), sqrt(d991));
-
-
-        // printf("d(99,100) = %f   d(101,100) = %f\n", sqrt(d99), sqrt(d100));
+        interchain_harmonic_spring(sv->R, cfg->N,
+                                  sv->links, (int)(sizeof(sv->links)/sizeof(sv->links[0])),
+                                  cfg->K_c, cfg->Delta, t);
 
         
+
         if (cfg->nb_rnap_initial > 0)
         {
             for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++)
@@ -718,20 +728,24 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
             }
         }
 
-        lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
+        lennard_jones_forces_2chains(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
                              cfg->sigma6, cfg->sigma12, cfg->Delta,
                              cfg->attache, cfg->periode_force,
                              f->fichier_force_LJ, t);
+
+
         lennard_jones_forces_rnap(
             cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
             cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
             cfg->sigma6_rnap2, cfg->sigma12_rnap2,
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
+
         lennard_jones_forces_rnap_rnap(
             cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
             cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
             sv->l_rnap);
+
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new,
                                      sv->compteur_grand_deplacement);
 

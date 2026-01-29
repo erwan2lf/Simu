@@ -184,6 +184,25 @@ void creation_polymere_droit(int N, double a, double ecart, double** R){
     }
 }
 
+#include <math.h>
+
+
+void creation_particules_gaussiennes_Ree_sur2(
+    int N,
+    double **R      // tableau [N][3]
+){
+    const double Ree = pow(N, 0.5);
+    const double R0 = 0.5 * Ree;              
+    const double sigma = R0 / sqrt(3.0);    
+
+    for (int i = 0; i < N; ++i) {
+        R[i][0] = sigma * randn();
+        R[i][1] = sigma * randn();
+        R[i][2] = sigma * randn();
+    }
+}
+
+
 void creation_fractal_globule(int N, double a, double ecart, double** R){
    for (int i = 0; i < N; i++){
     /*if (i<(int)N/3){
@@ -322,4 +341,51 @@ void creation_structure_knot(int N, double a, double **R){
     R[(N-24)/2+23][1] = 0;
     R[(N-24)/2+23][2] = R[(N-24)/2][2];
 
+}
+
+
+/**
+ * Charge la dernière structure depuis un fichier (déterminé par seed + CLUSTER/local)
+ * et copie dans R[N][3].
+ *
+ * Retour: 0 OK, 1 erreur.
+ */
+int load_last_structure_into_R(double **R,
+                               int N,
+                               unsigned long seed_to_use)
+{
+    char file_path[512];
+
+#ifdef CLUSTER
+    snprintf(
+        file_path,
+        sizeof(file_path),
+        "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_%lu/brownian_LJ.lammpstrj",
+        seed_to_use
+    );
+#else
+    snprintf(
+        file_path,
+        sizeof(file_path),
+        "/Users/erwan/Documents/These/Cluster/Start/simulation_seed_%lu/brownian_LJ.lammpstrj",
+        seed_to_use
+    );
+#endif
+
+    printf("📂 Ouverture du fichier : %s\n", file_path);
+
+    double **R_matrix = recuperer_derniere_structure(file_path, N);
+    if (R_matrix == NULL) {
+        fprintf(stderr, "Error: Could not read the structure from the file: %s\n", file_path);
+        return 1;
+    }
+
+    for (int i = 0; i < N; i++) {
+        R[i][0] = R_matrix[i][0];
+        R[i][1] = R_matrix[i][1];
+        R[i][2] = R_matrix[i][2];
+    }
+
+    free_matrix_if_allocated(&R_matrix, N);
+    return 0;
 }

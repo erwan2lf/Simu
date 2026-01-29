@@ -43,10 +43,9 @@ void force_bille_bille(double** R1,double** R2, double K_cohesine, double dist, 
                                     }}
 
 
- // Rayon de coupure pour l'interaction de Lennard-Jones
- // Marge pour réduire la fréquence de mise à jour des listes de voisinage
-
-// Structure pour représenter la liste de voisins pour chaque particule
+static inline int is_chain_endpoint(int idx, int Nchain) {
+    return (idx == 0) || (idx == Nchain - 1) || (idx == Nchain) || (idx == 2*Nchain - 1);
+}
 
 
 void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
@@ -74,6 +73,7 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
 
         for (int k = 0; k < neighbor_lists[i].count; k++) {
             int j = neighbor_lists[i].neighbors[k];
+            if (j <= i) continue;
 
             if (t % periode_enregistrement_force == 0) {
                 fprintf(fichier_force_LJ, "NEIGHBOR: %d ", j);
@@ -145,6 +145,89 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
     if (t % periode_enregistrement_force == 0 && nb_paires > 0) {
         double force_moyenne = total_force / nb_paires;
         fprintf(fichier_force_LJ, "# Force moyenne LJ : %lf\n", force_moyenne);
+    }
+}
+
+void lennard_jones_forces_2chains(double **R, NeighborList *neighbor_lists,
+                                  int Nchain,  // N par chaîne
+                                  double epsilon, double sigma6, double sigma12,
+                                  double Delta, int attache,
+                                  int periode_enregistrement_force,
+                                  FILE* fichier_force_LJ, int t)
+{
+    const int Ntot = 2 * Nchain;
+    double epsilon_att = epsilon;
+    double epsilon_rep = epsilon;
+    double deplacement = 0.0;
+    double emax = 300.0;
+
+    double total_force = 0.0;
+    int nb_paires = 0;
+
+    if (t % periode_enregistrement_force == 0) {
+        fprintf(fichier_force_LJ, "TIMESTEP: %d\n", t);
+    }
+
+    // ⚠️ boucle sur TOUTES les particules
+    for (int i = 0; i < Ntot; i++) {
+
+        if (t % periode_enregistrement_force == 0) {
+            fprintf(fichier_force_LJ, "Particule: %d\n", i);
+        }
+
+        for (int k = 0; k < neighbor_lists[i].count; k++) {
+            int j = neighbor_lists[i].neighbors[k];
+            if (j <= i) continue; // éviter double comptage
+
+            double dx = R[i][0] - R[j][0];
+            double dy = R[i][1] - R[j][1];
+            double dz = R[i][2] - R[j][2];
+
+            double r2 = dx*dx + dy*dy + dz*dz;
+            if (r2 < 1e-12) continue; // sécurité (évite /0)
+
+            double r4  = r2*r2;
+            double r8  = r4*r4;
+            double r14 = r8*r4*r2;   // r^(8+4+2)=r^14
+
+            double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
+                            - 6.0  * epsilon_att * sigma6  / r8);
+            if (f > emax) f = emax;
+            if (f < -emax) f = -emax;
+
+            double fx = f * dx;
+            double fy = f * dy;
+            double fz = f * dz;
+
+            total_force += sqrt(fx*fx + fy*fy + fz*fz);
+            nb_paires++;
+
+            // Application forces (Euler overdamped)
+            if (attache == 1) {
+                if (!is_chain_endpoint(i, Nchain)) {
+                    R[i][0] += Delta * fx;
+                    R[i][1] += Delta * fy;
+                    R[i][2] += Delta * fz;
+                }
+                if (!is_chain_endpoint(j, Nchain)) {
+                    R[j][0] -= Delta * fx;
+                    R[j][1] -= Delta * fy;
+                    R[j][2] -= Delta * fz;
+                }
+            } else { // attache == 0 : tout bouge
+                // tes prints/debug peuvent rester
+                R[i][0] += Delta * fx;  R[i][1] += Delta * fy;  R[i][2] += Delta * fz;
+                R[j][0] -= Delta * fx;  R[j][1] -= Delta * fy;  R[j][2] -= Delta * fz;
+            }
+
+            if (t % periode_enregistrement_force == 0) {
+                fprintf(fichier_force_LJ, "NEIGHBOR: %d %f %f %f\n", j, fx, fy, fz);
+            }
+        }
+    }
+
+    if (t % periode_enregistrement_force == 0 && nb_paires > 0) {
+        fprintf(fichier_force_LJ, "# Force moyenne LJ : %lf\n", total_force / nb_paires);
     }
 }
 
@@ -236,6 +319,89 @@ void f_bending_forces(double **R, double **t_link, double **bending_forces, doub
 
         }
     }
+
+    #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+static inline size_t pair_index(int a, int b, int N) {
+    return (size_t)a * (size_t)N + (size_t)b;
+}
+
+void debug_neighbor_double_count_strict(NeighborList *nl, int N, int t) {
+    // counts[a*N + b] = nb fois qu'on a vu l'arête orientée a->b
+    uint8_t *counts = (uint8_t*)calloc((size_t)N * (size_t)N, sizeof(uint8_t));
+    if (!counts) {
+        fprintf(stderr, "debug_neighbor_double_count_strict: alloc failed (N=%d)\n", N);
+        return;
+    }
+
+    long long directed_edges = 0;
+    long long symmetric_pairs = 0;      // nb de paires (i,j) telles que i->j et j->i existent
+    long long multi_edges = 0;          // nb d'arêtes vues >1 fois (même orientation)
+    long long self_edges = 0;           // i==j
+
+    // 1) Remplir counts et détecter doublons orientés
+    for (int i = 0; i < N; ++i) {
+        for (int k = 0; k < nl[i].count; ++k) {
+            int j = nl[i].neighbors[k];
+            directed_edges++;
+
+            if (j == i) self_edges++;
+
+            size_t idx = pair_index(i, j, N);
+            if (counts[idx] == 255) {
+                // saturé
+            } else {
+                counts[idx]++;
+            }
+            if (counts[idx] > 1) {
+                multi_edges++; // même (i->j) ajouté plusieurs fois -> bug de construction de NL
+            }
+        }
+    }
+
+    // 2) Mesurer la symétrie : pour chaque paire non orientée (i<j)
+    for (int i = 0; i < N; ++i) {
+        for (int j = i + 1; j < N; ++j) {
+            uint8_t cij = counts[pair_index(i, j, N)];
+            uint8_t cji = counts[pair_index(j, i, N)];
+            if (cij > 0 && cji > 0) symmetric_pairs++;
+        }
+    }
+
+    fprintf(stderr,
+        "[t=%d] STRICT neighbor check:\n"
+        "  directed_edges(total i->j) = %lld\n"
+        "  symmetric_pairs(i<j with both directions present) = %lld\n"
+        "  multi_edges(duplicate same direction) = %lld\n"
+        "  self_edges(i==j) = %lld\n",
+        t, directed_edges, symmetric_pairs, multi_edges, self_edges
+    );
+
+    // Interprétation :
+    // - si symmetric_pairs est grand (proche du nb de paires uniques), ta NL est "complète" (i->j et j->i)
+    // - si symmetric_pairs ~ 0, ta NL est "demi" (typiquement seulement j>i)
+    // - si multi_edges > 0 : bug (même voisin répété)
+    // - self_edges > 0 : bug (un point est son propre voisin)
+
+    // Bonus : afficher quelques exemples de doublons orientés
+    if (multi_edges > 0) {
+        int printed = 0;
+        fprintf(stderr, "  Examples of duplicate directed edges (i->j count>1):\n");
+        for (int i = 0; i < N && printed < 10; ++i) {
+            for (int j = 0; j < N && printed < 10; ++j) {
+                uint8_t c = counts[pair_index(i, j, N)];
+                if (c > 1) {
+                    fprintf(stderr, "    %d -> %d : %u times\n", i, j, (unsigned)c);
+                    printed++;
+                }
+            }
+        }
+    }
+
+    free(counts);
+}
 
 
 

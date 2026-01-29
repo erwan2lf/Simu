@@ -668,22 +668,25 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
     double **R     = sv->R;
     double **R_new = sv->R_new;
 
+    int M = 2 * cfg->N;
+
     // --- Allocation des neighbor lists (particules + RNAP) ---
     NeighborList_rnap **neighbor_lists_rnap = allocate_neighbor_list_rnap(sv->nb_rnap, cfg->rnap_subunits);
-    NeighborList *neighbor_lists = malloc(cfg->N * sizeof(NeighborList));
+    NeighborList *neighbor_lists = malloc(M * sizeof(NeighborList));
 
     if (!neighbor_lists) {
         fprintf(stderr, "❌ Erreur d'allocation : neighbor_lists\n");
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < cfg->N; i++) {
+    for (int i = 0; i < M; i++) {
         neighbor_lists[i].neighbors = malloc(10 * sizeof(int));
         neighbor_lists[i].capacity  = 10;
         if (!neighbor_lists[i].neighbors) {
             fprintf(stderr, "❌ Erreur d'allocation : neighbor_lists[%d].neighbors\n", i);
             exit(EXIT_FAILURE);
         }
+        neighbor_lists[i].count = 0; 
     }
 
     if (cfg->quench == 1)
@@ -715,11 +718,6 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
             );
         }
     }
-
-
-
-
-
 
     for(int i = 0; i < cfg->nb_rnap_initial; i++)
     {

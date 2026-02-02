@@ -89,6 +89,7 @@ typedef struct {
     // double chaine
 
     int *links;
+    int n_links;
 
 
     

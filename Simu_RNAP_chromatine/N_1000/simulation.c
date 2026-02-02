@@ -146,9 +146,75 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
     sv->cdm_conf = malloc(3 * sizeof(double));
     sv->nb_move_large = 0;
 
-    // double chaine
 
-    sv->links = malloc(10*sizeof(int));
+// Par défaut
+sv->links   = NULL;
+sv->n_links = 0;
+
+if (cfg->cohesine == 1) {
+
+    // -------- Mode A : pas régulier --------
+    if (cfg->freq_cohesine > 0) {
+
+        int step  = cfg->freq_cohesine;
+        int start = 0; // mets "start = step;" si tu veux éviter i=0
+
+        int n = (cfg->N - start + step - 1) / step; // ceil((N-start)/step)
+        if (n > 0) {
+            sv->links = (int*)malloc((size_t)n * sizeof(int));
+            if (!sv->links) {
+                perror("malloc sv->links");
+                exit(EXIT_FAILURE);
+            }
+
+            // Remplissage
+            int real_n = 0;
+            for (int k = 0; k < n; k++) {
+                int idx = start + k * step;
+                if (idx >= cfg->N) break;
+                sv->links[real_n++] = idx;
+            }
+
+            sv->n_links = real_n;
+        }
+    }
+
+    // -------- Mode B : liste explicite --------
+    else { // cfg->freq_cohesine == 0
+
+        const int list[] = {200, 400};
+        const int n = (int)(sizeof(list) / sizeof(list[0]));
+
+        sv->links = (int*)malloc((size_t)n * sizeof(int));
+        if (!sv->links) {
+            perror("malloc sv->links");
+            exit(EXIT_FAILURE);
+        }
+
+        // Copie (avec vérif bornes)
+        int real_n = 0;
+        for (int i = 0; i < n; i++) {
+            if (list[i] < 0 || list[i] >= cfg->N) {
+                fprintf(stderr, "⚠️ indice de lien hors bornes: %d (N=%d) -> skip\n",
+                        list[i], cfg->N);
+                continue;
+            }
+            sv->links[real_n++] = list[i];
+        }
+
+        sv->n_links = real_n;
+
+        // Optionnel : si real_n < n, tu peux shrink (pas obligatoire)
+        if (sv->n_links > 0) {
+            int *tmp = realloc(sv->links, (size_t)sv->n_links * sizeof(int));
+            if (tmp) sv->links = tmp;
+        } else {
+            free(sv->links);
+            sv->links = NULL;
+        }
+    }
+    printf("Cohesines: %d liens (freq=%d)\n", sv->n_links, cfg->freq_cohesine);
+}
 }
 
 void cleanup_sim_vars(SimVars *sv, Config *cfg)
@@ -526,17 +592,6 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
 void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap, int t_start)
 {
-
-    sv->links[0] = 0;
-    sv->links[1] = 100;
-    sv->links[2] = 200;
-    sv->links[3] = 300;
-    sv->links[4] = 400;
-    sv->links[5] = 500;
-    sv->links[6] = 600;
-    sv->links[7] = 700;
-    sv->links[8] = 800;
-    sv->links[9] = 900;
     clock_t start_2, end_2;
     clock_t start, end;
     double duree_boucle, duree_tot = 0, temps_restant;

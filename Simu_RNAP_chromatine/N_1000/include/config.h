@@ -103,6 +103,9 @@ typedef struct {
     int critere;
     int equilibriate; 
     int quench;
+    int cohesine;
+
+    int freq_cohesine;
 
     // --- périodes d'enregistrement
     int periode_enregistrement;

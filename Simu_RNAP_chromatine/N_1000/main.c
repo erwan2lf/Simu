@@ -122,7 +122,7 @@ int main(int argc, char*argv[])
     //     free_matrix_if_allocated(&R_matrix, cfg.N);
 
     // }
-
+    printf("oui = %d \n ", cfg.resume_from_checkpoint);
     if (cfg.resume_from_checkpoint == 0) {
 
         // Chaîne 1 : remplit sv.R[0..N-1]
@@ -135,6 +135,11 @@ int main(int argc, char*argv[])
         if (load_last_structure_into_R(sv.R + cfg.N, cfg.N, seed2) != 0) {
             return 1;
         }
+    }
+
+    for (int i = 0 ; i < 2 * cfg.N; i++)
+    {
+        printf("%d %lf %lf %lf \n", i, sv.R[i][0], sv.R[i][1], sv.R[i][2]);
     }
     
     simu_LJ_RNAP_erwan(&cfg, &sv, &f, t_start);

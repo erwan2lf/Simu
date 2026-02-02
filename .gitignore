@@ -40,3 +40,7 @@ Simulations/
 # === Autoriser scripts mais ignorer leurs sorties ===
 !*.py
 !*.sh
+N_1000_200/
+N_1000_200_800/
+N_1000_400/
+N_1000_800/

@@ -173,6 +173,7 @@ if (cfg->cohesine == 1) {
                 int idx = start + k * step;
                 if (idx >= cfg->N) break;
                 sv->links[real_n++] = idx;
+                printf("idx = %d \n", idx);
             }
 
             sv->n_links = real_n;
@@ -724,8 +725,9 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
             f->fichier_force_thermique, cfg->temperature);
 
         interchain_harmonic_spring(sv->R, cfg->N,
-                                  sv->links, (int)(sizeof(sv->links)/sizeof(sv->links[0])),
+                                  sv->links, sv->n_links,
                                   cfg->K_c, cfg->Delta, t);
+        
 
         
 

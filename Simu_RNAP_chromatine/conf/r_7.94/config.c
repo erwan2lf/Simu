@@ -111,7 +111,7 @@ Config parse_config(int argc, char *argv[])
 
     // print_header("Durées et périodicitéss");
 
-    int N_rec = 1000; 
+    int N_rec = 10000; 
     int k;
 
     if(cfg.nb_rnap_initial == 0)

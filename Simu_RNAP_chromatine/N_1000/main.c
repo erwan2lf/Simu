@@ -3,8 +3,8 @@
 #include <math.h>
 #include <omp.h>
 #include <time.h>
-#include "include/config.h"
-#include "include/simulation.h"
+#include "config.h"
+#include "simulation.h"
 #include "transcription.h"
 #include "file.h"
 

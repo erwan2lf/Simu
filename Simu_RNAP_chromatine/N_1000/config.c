@@ -142,6 +142,7 @@ Config parse_config(int argc, char *argv[])
         printf("T1 = %d\n", cfg.T);
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.T =  k * N_rec;
+        cfg.T + 10000
         printf("Tf = %d\n", cfg.T);
 
         cfg.periode_enregistrement = k;  // periode_enregistrement

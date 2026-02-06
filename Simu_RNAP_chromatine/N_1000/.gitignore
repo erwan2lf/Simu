@@ -67,8 +67,6 @@ autocorrelation_data*.txt
 R_centre_de_masse.txt
 nom_R_centre_de_masse.txt
 
-# === INCLUDE / HEADERS GENERATED ===
-include/
 
 # === MISC ===
 *.bak

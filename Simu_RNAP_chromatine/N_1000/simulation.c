@@ -700,11 +700,12 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
                     sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;
                 }
 
-                bond_rnap_bead_progressive_mvt(
-                    cfg, sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
-                    cfg->Delta, sv->positions_bille_rnap[rnap],
-                    sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
-                    f->fichier_force_lea, cfg->periode_force, t);
+                // bond_rnap_bead_progressive_mvt(
+                //     cfg, sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
+                //     cfg->Delta, sv->positions_bille_rnap[rnap],
+                //     sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
+                //     f->fichier_force_lea, cfg->periode_force, t);
+
                 if (1 - sv->avancement_transcription[rnap] < 1e-7) {
                     sv->is_rnap[sv->positions_bille_rnap[rnap]] = 0;
                     retirer_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap,

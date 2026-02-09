@@ -846,27 +846,46 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             fprintf(f->fichier_voisin, "\n");
         }
 
-        polymere_brownian_motion(
+       polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
             cfg->T, f->fichier_force, cfg->periode_force,
             f->fichier_force_thermique, cfg->temperature);
+
+        polymere_brownian_motion(
+            sv->R + cfg->N, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
+            cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
+            cfg->T, f->fichier_force, cfg->periode_force,
+            f->fichier_force_thermique, cfg->temperature);
+
+        interchain_harmonic_spring(sv->R, cfg->N,
+                                  sv->links, sv->n_links,
+                                  cfg->K_c, cfg->Delta, t);
 
         //update_link_vectors(R, t_link, N);
         //f_bending_forces(R, t_link, bending_forces, K_bend, N, t);
 
 
         /////////// Boucle sur les RNAPS /////////////
-
-        sv->R = sv->R_new;
         
-        lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon, cfg->sigma6, cfg->sigma12, cfg->Delta, cfg->attache, cfg->periode_force, f->fichier_force_LJ, t);
+        lennard_jones_forces_2chains(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
+                             cfg->sigma6, cfg->sigma12, cfg->Delta,
+                             cfg->attache, cfg->periode_force,
+                             f->fichier_force_LJ, t);
+
+
         lennard_jones_forces_rnap(
             cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
             cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
             cfg->sigma6_rnap2, cfg->sigma12_rnap2,
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
+
+        lennard_jones_forces_rnap_rnap(
+            cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
+            cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
+            sv->l_rnap);
+
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new, sv->compteur_grand_deplacement);
 
 
@@ -882,28 +901,28 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             printf("%d/%.d %.f:%.f %.2fmin std %.10f moy %.10f\n",t, cfg->T_eq, duree_min, duree_sec, temps_restant, mesures.std, mesures.moyenne);   
         }
 
-        if(t%cfg->periode_enregistrement == 0){
-            if(sv->nb_rnap > 0){
-                enregistrement_RNAP(
-                    f->fichier,                 
-                    sv->R,                     
-                    cfg->N,                     
-                    sv->R_rnap,                 
-                    sv->nb_rnap,                
-                    t,                          
-                    sv->positions_bille_rnap,   
-                    cfg->rnap_subunits,         
-                    cfg->nb_rnap_initial,      
-                    sv->l_rnap, 
-                    sv,
-                    cfg               
-                );
-                // enregistrement_RNAP_position(f->fichier_rnap, sv->nb_rnap, t, sv->positions_bille_rnap, sv->avancement_transcription[0]);
-            }
-            else{
-                enregistrement(f->fichier, sv->R, cfg->N, t);
-            }
-        }
+        // if(t%cfg->periode_enregistrement == 0){
+        //     if(sv->nb_rnap > 0){
+        //         enregistrement_RNAP(
+        //             f->fichier,                 
+        //             sv->R,                     
+        //             cfg->N,                     
+        //             sv->R_rnap,                 
+        //             sv->nb_rnap,                
+        //             t,                          
+        //             sv->positions_bille_rnap,   
+        //             cfg->rnap_subunits,         
+        //             cfg->nb_rnap_initial,      
+        //             sv->l_rnap, 
+        //             sv,
+        //             cfg               
+        //         );
+        //         // enregistrement_RNAP_position(f->fichier_rnap, sv->nb_rnap, t, sv->positions_bille_rnap, sv->avancement_transcription[0]);
+        //     }
+        //     else{
+        //         enregistrement(f->fichier, sv->R, cfg->N, t);
+        //     }
+        // }
     }
 }
 

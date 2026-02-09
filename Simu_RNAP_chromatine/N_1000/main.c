@@ -77,7 +77,7 @@ int main(int argc, char*argv[])
 
 
     // creation_polymere_droit(cfg.N, cfg.a, cfg.ecart_train, sv.R);
-    // creation_polymere_aleatoire(cfg.N, cfg.a, sv.R);
+    creation_polymere_aleatoire(2*cfg.N, cfg.a, sv.R);
     // creation_polymere_aleatoire(cfg.N, cfg.a, sv.R_2);
 
     // creation_particules_gaussiennes_Ree_sur2(cfg.N, sv.R);
@@ -122,19 +122,19 @@ int main(int argc, char*argv[])
     //     free_matrix_if_allocated(&R_matrix, cfg.N);
 
     // }
-    if (cfg.resume_from_checkpoint == 0) {
+    // if (cfg.resume_from_checkpoint == 0) {
 
-        // Chaîne 1 : remplit sv.R[0..N-1]
-        if (load_last_structure_into_R(sv.R, cfg.N, (unsigned long)cfg.seed) != 0) {
-            return 1;
-        }
+    //     // Chaîne 1 : remplit sv.R[0..N-1]
+    //     if (load_last_structure_into_R(sv.R, cfg.N, (unsigned long)cfg.seed) != 0) {
+    //         return 1;
+    //     }
 
-        // Chaîne 2 : remplit sv.R[N..2N-1]
-        unsigned long seed2 = seed_wrap_add((unsigned long)cfg.seed, 1UL, 50UL);
-        if (load_last_structure_into_R(sv.R + cfg.N, cfg.N, seed2) != 0) {
-            return 1;
-        }
-    }
+    //     // Chaîne 2 : remplit sv.R[N..2N-1]
+    //     unsigned long seed2 = seed_wrap_add((unsigned long)cfg.seed, 1UL, 50UL);
+    //     if (load_last_structure_into_R(sv.R + cfg.N, cfg.N, seed2) != 0) {
+    //         return 1;
+    //     }
+    // }
     
     simu_LJ_RNAP_erwan(&cfg, &sv, &f, t_start);
 

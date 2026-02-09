@@ -51,7 +51,7 @@ Config parse_config(int argc, char *argv[])
     cfg.equilibriate = 1; // Mise a l'équilibre du système avant calcul
     cfg.quench = 0;
     cfg.cohesine = 1; 
-    cfg.freq_cohesine = 0;
+    cfg.freq_cohesine = 100;
 
 
 
@@ -127,7 +127,7 @@ Config parse_config(int argc, char *argv[])
         cfg.T = cfg.T + cfg.T/10;
         // cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
-        cfg.T_eq = 0;
+        cfg.T_eq = 1e6;
 
         cfg.T = 220000;
 

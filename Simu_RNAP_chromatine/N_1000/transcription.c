@@ -325,7 +325,163 @@ void liaison_sup(double alpha, double K_transpt, double Delta, double** r, int p
         if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "\n");}
 }
 
+void centre_masse_rnap(
+    double **R_rnap,
+    int n_sub,
+    double com[3]
+)
+{
+    com[0] = 0.0;
+    com[1] = 0.0;
+    com[2] = 0.0;
 
+    for (int i = 0; i < n_sub; i++) {
+        com[0] += R_rnap[i][0];
+        com[1] += R_rnap[i][1];
+        com[2] += R_rnap[i][2];
+    }
+
+    double inv = 1.0 / (double)n_sub;
+    com[0] *= inv;
+    com[1] *= inv;
+    com[2] *= inv;
+}
+
+int monomere_plus_proche(
+    double **R,
+    int N,
+    const double pos[3],
+    int p_ref,
+    int W
+)
+{
+    int i_min = p_ref;
+    double d2_min = 1e300;
+
+    int i0 = p_ref - W;
+    int i1 = p_ref + W;
+    if (i0 < 0) i0 = 0;
+    if (i1 > N - 1) i1 = N - 1;
+
+    for (int i = i0; i <= i1; i++) {
+        double dx = R[i][0] - pos[0];
+        double dy = R[i][1] - pos[1];
+        double dz = R[i][2] - pos[2];
+        double d2 = dx*dx + dy*dy + dz*dz;
+
+        if (d2 < d2_min) {
+            d2_min = d2;
+            i_min = i;
+        }
+    }
+
+    return i_min;
+}
+
+void force_rnap_along_chromatin(
+    const Config *cfg,
+    double **R,           // chromatine
+    double **R_rnap,      // sous-unités RNAP
+    int mono,             // monomère p le plus proche
+    double F_act,         // intensité de la force
+    double Delta          // pas de temps
+)
+{
+    const double eps = 1e-12;
+    const int nsub = cfg->rnap_subunits;
+
+    /* Sécurité bords */
+    if (mono < 0 || mono >= cfg->N - 1) return;
+
+    /* Tangente locale de la chromatine */
+    double tx = R[mono + 1][0] - R[mono][0];
+    double ty = R[mono + 1][1] - R[mono][1];
+    double tz = R[mono + 1][2] - R[mono][2];
+
+    double norm = sqrt(tx*tx + ty*ty + tz*tz);
+    if (norm < eps) return;
+
+    tx /= norm;
+    ty /= norm;
+    tz /= norm;
+
+    /* Applique la force à chaque sous-unité RNAP */
+    for (int sub = 0; sub < nsub; sub++) {
+        R_rnap[sub][0] += Delta * F_act * tx;
+        R_rnap[sub][1] += Delta * F_act * ty;
+        R_rnap[sub][2] += Delta * F_act * tz;
+    }
+
+    // OPTIONNEL : réaction sur la chromatine (souvent NON souhaitée)
+    R[mono][0]     -= Delta * F_act * tx / nsub;
+    R[mono][1]     -= Delta * F_act * ty / nsub;
+    R[mono][2]     -= Delta * F_act * tz / nsub;
+    
+}
+
+void bond_rnap_chromatine(
+    const Config *cfg, 
+    double **R,
+    double **R_rnap, 
+    double a_transpt, 
+    double K_transpt, 
+    double Delta, 
+    int mono_transcrpt, 
+    double a, 
+    double alpha
+)
+{
+    const int NB_SUBUNITS = cfg->rnap_subunits;
+    const double eps = 1e-12;   // évite division par 0
+
+    int p = mono_transcrpt;
+    int p1 = mono_transcrpt + 1;
+
+    for(int sub = 0; sub < NB_SUBUNITS; sub++)
+    {
+        // Vecteur vers p et p+1
+        double d0x = R[p][0]  - R_rnap[sub][0];
+        double d0y = R[p][1]  - R_rnap[sub][1];
+        double d0z = R[p][2]  - R_rnap[sub][2];
+
+        double d1x = R[p1][0] - R_rnap[sub][0];
+        double d1y = R[p1][1] - R_rnap[sub][1];
+        double d1z = R[p1][2] - R_rnap[sub][2];
+
+        double dist0 = distance(R[p], R_rnap[sub]); if (dist0 < eps) dist0 = eps;
+        double dist1 = distance(R[p1], R_rnap[sub]); if (dist1 < eps) dist1 = eps;
+
+        double f0 = K_transpt * (1.0 - a_transpt / dist0);
+        double f1 = K_transpt * (1.0 - a_transpt / dist1);
+
+        // Force exercée par p et p + 1 sur la sous-unité
+        double Fx = d0x * f0 + d1x * f1;
+        double Fy = d0y * f0 + d1y * f1;
+        double Fz = d0z * f0 + d1z * f1;
+
+        // Force exercée par p sur la sous-unité
+        double Fx0 = d0x * f0;
+        double Fy0 = d0y * f0;
+        double Fz0 = d0z * f0;
+
+        // Force exercée par p+1
+        double Fx1 = d1x * f1;
+        double Fy1 = d1y * f1;
+        double Fz1 = d1z * f1;
+
+        R_rnap[sub][0] += Delta * Fx;
+        R_rnap[sub][1] += Delta * Fy;
+        R_rnap[sub][2] += Delta * Fz;
+
+        R[p][0]  -= Delta * Fx0;
+        R[p][1]  -= Delta * Fy0;
+        R[p][2]  -= Delta * Fz0;
+
+        R[p1][0] -= Delta * Fx1;
+        R[p1][1] -= Delta * Fy1;
+        R[p1][2] -= Delta * Fz1;
+    }
+}
 
 
 void bond_rnap_bead_progressive_mvt(
@@ -381,7 +537,7 @@ void bond_rnap_bead_progressive_mvt(
         double dist0 = sqrt(d0x*d0x + d0y*d0y + d0z*d0z); if (dist0 < eps) dist0 = eps;
         double dist1 = sqrt(d1x*d1x + d1y*d1y + d1z*d1z); if (dist1 < eps) dist1 = eps;
 
-        // Facteur "nucléosome" utilisé dans votre code: (1 - (alpha+1)/(2*dist))
+
         // Si vous préférez un ressort harmonique linéaire pur, remplacer f0/f1 par (dist - a_transpt)/dist
         double f0 = (1.0 - (alpha + 1.0) / (2.0 * dist0));
         double f1 = (1.0 - (alpha + 1.0) / (2.0 * dist1));
@@ -422,7 +578,7 @@ void bond_rnap_bead_progressive_mvt(
 }
 
 
-void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap, double **R, int N, NeighborList_rnap **neighbor_lists, double epsilon, double sigma6, double sigma12, double sigma6rnap2, double sigma12rnap2, double cut_rnap2, double Delta, int t, FILE* test, int T, FILE* fichier_force_rnap, int periode_enregistrement_force, int* l_rnap){
+/*void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap, double **R, int N, NeighborList_rnap **neighbor_lists, double epsilon, double sigma6, double sigma12, double sigma6rnap2, double sigma12rnap2, double cut_rnap2, double Delta, int t, FILE* test, int T, FILE* fichier_force_rnap, int periode_enregistrement_force, int* l_rnap){
     if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"TIMESTEP: %d\n",t);}
     double deplacement = 0.0;
     for (int rnap = 0; rnap < nb_rnap; rnap++) 
@@ -511,9 +667,252 @@ void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap,
             }
         } 
     }
+}*/
+
+/* void lennard_jones_forces_rnap(
+    const Config *cfg,
+    double ***R_rnap,
+    int nb_rnap,
+    double **R,
+    int N,  // (optionnel)
+    NeighborList_rnap **neighbor_lists,
+    double epsilon,
+    double sigma6,
+    double sigma12,
+    double sigma6rnap2,   // (optionnel)
+    double sigma12rnap2,  // (optionnel)
+    double cut_rnap2,     // cutoff^2
+    double Delta,
+    int t,
+    FILE *test,           // (optionnel)
+    int T,                // (optionnel)
+    FILE *fichier_force_rnap,
+    int periode_enregistrement_force,
+    int *l_rnap
+){
+    const double eps2 = 1e-12;
+
+    // Clamp sur le déplacement s = Delta * f
+    const double s_max_rc = 0.02;   // RNAP-chromatine
+    const double s_max_in = 0.02;   // intra-RNAP
+
+    const int do_log = (fichier_force_rnap && periode_enregistrement_force > 0
+                        && (t % periode_enregistrement_force == 0));
+
+    if (do_log) fprintf(fichier_force_rnap, "TIMESTEP: %d\n", t);
+
+    for (int rnap = 0; rnap < nb_rnap; rnap++) {
+        if (l_rnap && l_rnap[rnap] < 0) continue;
+
+        if (do_log) fprintf(fichier_force_rnap, "RNAP: %d\n", rnap);
+
+        for (int subunit = 0; subunit < cfg->rnap_subunits; subunit++) {
+
+            if (do_log) fprintf(fichier_force_rnap, "SUBUNIT: %d\n", subunit);
+
+            for (int k = 0; k < neighbor_lists[rnap][subunit].count; k++) {
+                int j = neighbor_lists[rnap][subunit].neighbors[k];
+                if (j < 0 || j >= N) continue; // sécurité
+
+                double *Ri = R_rnap[rnap][subunit];
+                double *Rj = R[j];
+
+                double dx = Ri[0] - Rj[0];
+                double dy = Ri[1] - Rj[1];
+                double dz = Ri[2] - Rj[2];
+
+                double r2 = dx*dx + dy*dy + dz*dz;
+                if (r2 < eps2 || r2 > cut_rnap2) continue;
+
+                // Calcul stable via inv_r2, inv_r6, inv_r12
+                double inv_r2  = 1.0 / r2;
+                double inv_r6  = inv_r2 * inv_r2 * inv_r2;
+                double inv_r12 = inv_r6 * inv_r6;
+
+                // Si tu veux LJ complet RNAP-chromatine, utilise ceci :
+                double f = 24.0 * epsilon * (2.0 * sigma12 * inv_r12 - sigma6 * inv_r6) * inv_r2;
+
+                // Si tu veux répulsion pure (ce que ton code faisait), remplace par :
+                // double f = 48.0 * epsilon * sigma12 * inv_r12 * inv_r2; // ~ 4*12*epsilon*sigma12/r14 * rvec
+
+                double s = Delta * f;
+                if (s >  s_max_rc) s =  s_max_rc;
+                if (s < -s_max_rc) s = -s_max_rc;
+
+                if (do_log) {
+                    // on logge "force*dx" et le déplacement effectué sur x/y/z
+                    double dRx = s * dx, dRy = s * dy, dRz = s * dz;
+                    fprintf(fichier_force_rnap, "NEIGHBOR: %d ", j);
+                    fprintf(fichier_force_rnap, "%f %f %f %f %f %f\n",
+                            f*dx, dRx, f*dy, dRy, f*dz, dRz);
+                }
+
+                Ri[0] += s * dx;  Ri[1] += s * dy;  Ri[2] += s * dz;
+                Rj[0] -= s * dx;  Rj[1] -= s * dy;  Rj[2] -= s * dz;
+            }
+
+            for (int subunit2 = subunit + 1; subunit2 < cfg->rnap_subunits; subunit2++) {
+
+                double epsilon_att = epsilon;
+                double epsilon_rep = 1.5 * epsilon;
+
+                double *Ri = R_rnap[rnap][subunit];
+                double *Rj = R_rnap[rnap][subunit2];
+
+                double dx = Ri[0] - Rj[0];
+                double dy = Ri[1] - Rj[1];
+                double dz = Ri[2] - Rj[2];
+
+                double r2 = dx*dx + dy*dy + dz*dz;
+                if (r2 < eps2 || r2 > cut_rnap2) continue;
+
+                double inv_r2  = 1.0 / r2;
+                double inv_r6  = inv_r2 * inv_r2 * inv_r2;
+                double inv_r12 = inv_r6 * inv_r6;
+
+                double f = 24.0 * (2.0 * epsilon_rep * sigma12 * inv_r12
+                                   -       epsilon_att * sigma6  * inv_r6) * inv_r2;
+
+                double s = Delta * f;
+                if (s >  s_max_in) s =  s_max_in;
+                if (s < -s_max_in) s = -s_max_in;
+
+                Ri[0] += s * dx;  Ri[1] += s * dy;  Ri[2] += s * dz;
+                Rj[0] -= s * dx;  Rj[1] -= s * dy;  Rj[2] -= s * dz;
+            }
+        }
+    }
+}*/
+
+void lennard_jones_forces_rnap(
+    const Config *cfg,
+    double ***R_rnap,
+    int nb_rnap,
+    double **R,
+    int N,
+    NeighborList_rnap **neighbor_lists,
+    double epsilon,
+    double sigma6,
+    double sigma12,
+    double sigma6rnap2,   // unused
+    double sigma12rnap2,  // unused
+    double cut_rnap2,     // cutoff^2
+    double Delta,
+    int t,
+    FILE *test,           // unused
+    int T,                // unused
+    FILE *fichier_force_rnap,
+    int periode_enregistrement_force,
+    int *l_rnap
+){
+    const double eps2 = 1e-12;
+
+    // --- Réglages : répulsion > attraction ---
+    const double rep_factor_rc   = 5.0;   // RNAP–chromatine (essaye 3, 5, 10)
+    const double rep_factor_intra= 2.0;   // intra-RNAP (anneau), à ajuster
+
+    const double epsilon_rep_rc   = rep_factor_rc    * epsilon;
+    const double epsilon_att_rc   = 1.0             * epsilon;
+
+    const double epsilon_rep_intra= rep_factor_intra * epsilon;
+    const double epsilon_att_intra= 1.0             * epsilon;
+
+    // Clamp sur le déplacement s = Delta * f
+    const double s_max_rc = 0.02;  // RNAP–chromatine
+    const double s_max_in = 0.02;  // intra-RNAP
+
+    const int do_log = (fichier_force_rnap && periode_enregistrement_force > 0
+                        && (t % periode_enregistrement_force == 0));
+
+    if (do_log) fprintf(fichier_force_rnap, "TIMESTEP: %d\n", t);
+
+    for (int rnap = 0; rnap < nb_rnap; rnap++) {
+        if (l_rnap && l_rnap[rnap] < 0) continue;
+
+        if (do_log) fprintf(fichier_force_rnap, "RNAP: %d\n", rnap);
+
+        for (int subunit = 0; subunit < cfg->rnap_subunits; subunit++) {
+
+            if (do_log) fprintf(fichier_force_rnap, "SUBUNIT: %d\n", subunit);
+
+            /* ===============================
+               RNAP – CHROMATINE (neighbor list)
+               répulsion > attraction
+               =============================== */
+            for (int k = 0; k < neighbor_lists[rnap][subunit].count; k++) {
+                int j = neighbor_lists[rnap][subunit].neighbors[k];
+                if (j < 0 || j >= N) continue;
+
+                double *Ri = R_rnap[rnap][subunit];
+                double *Rj = R[j];
+
+                double dx = Ri[0] - Rj[0];
+                double dy = Ri[1] - Rj[1];
+                double dz = Ri[2] - Rj[2];
+
+                double r2 = dx*dx + dy*dy + dz*dz;
+                if (r2 < eps2 || r2 > cut_rnap2) continue;
+
+                double inv_r2  = 1.0 / r2;
+                double inv_r6  = inv_r2 * inv_r2 * inv_r2;
+                double inv_r12 = inv_r6 * inv_r6;
+
+                // F_vec = f * r_vec
+                // f = 24 [ 2 ε_rep σ^12/r^14  -  ε_att σ^6/r^8 ]
+                double f = 24.0 * ( 2.0 * epsilon_rep_rc * sigma12 * inv_r12
+                                   -      epsilon_att_rc * sigma6  * inv_r6 ) * inv_r2;
+
+                double s = Delta * f;
+                if (s >  s_max_rc) s =  s_max_rc;
+                if (s < -s_max_rc) s = -s_max_rc;
+
+                if (do_log) {
+                    double dRx = s * dx, dRy = s * dy, dRz = s * dz;
+                    fprintf(fichier_force_rnap, "NEIGHBOR: %d ", j);
+                    fprintf(fichier_force_rnap, "%f %f %f %f %f %f\n",
+                            f*dx, dRx, f*dy, dRy, f*dz, dRz);
+                }
+
+                Ri[0] += s * dx;  Ri[1] += s * dy;  Ri[2] += s * dz;
+                Rj[0] -= s * dx;  Rj[1] -= s * dy;  Rj[2] -= s * dz;
+            }
+
+            /* ===============================
+               Intra-RNAP (subunit2 > subunit)
+               répulsion > attraction
+               =============================== */
+            for (int subunit2 = subunit + 1; subunit2 < cfg->rnap_subunits; subunit2++) {
+
+                double *Ri = R_rnap[rnap][subunit];
+                double *Rj = R_rnap[rnap][subunit2];
+
+                double dx = Ri[0] - Rj[0];
+                double dy = Ri[1] - Rj[1];
+                double dz = Ri[2] - Rj[2];
+
+                double r2 = dx*dx + dy*dy + dz*dz;
+                if (r2 < eps2 || r2 > cut_rnap2) continue;
+
+                double inv_r2  = 1.0 / r2;
+                double inv_r6  = inv_r2 * inv_r2 * inv_r2;
+                double inv_r12 = inv_r6 * inv_r6;
+
+                double f = 24.0 * ( 2.0 * epsilon_rep_intra * sigma12 * inv_r12
+                                   -      epsilon_att_intra * sigma6  * inv_r6 ) * inv_r2;
+
+                double s = Delta * f;
+                if (s >  s_max_in) s =  s_max_in;
+                if (s < -s_max_in) s = -s_max_in;
+
+                Ri[0] += s * dx;  Ri[1] += s * dy;  Ri[2] += s * dz;
+                Rj[0] -= s * dx;  Rj[1] -= s * dy;  Rj[2] -= s * dz;
+            }
+        }
+    }
 }
 
-void lennard_jones_forces_rnap_rnap(
+
+/*void lennard_jones_forces_rnap_rnap(
                                     const Config *cfg,
                                     double ***R_rnap,
                                     int nb_rnap,
@@ -537,6 +936,7 @@ void lennard_jones_forces_rnap_rnap(
 
             // --- Interactions RNAP_i ↔ RNAP_j (j > i pour éviter les doublons) ---
             for (int rnap_j = rnap_i + 1; rnap_j < nb_rnap; rnap_j++) {
+                if (l_rnap[rnap_j] < 0) continue;
                 for (int sub_j = 0; sub_j < cfg->rnap_subunits; sub_j++) {
 
                     double *Rj = R_rnap[rnap_j][sub_j];
@@ -576,7 +976,7 @@ void lennard_jones_forces_rnap_rnap(
             }
 
             // --- Auto-interactions entre sous-unités du même RNAP ---
-            for (int sub_j = 0; sub_j < cfg->rnap_subunits; sub_j++) {
+            for (int sub_j = sub_i + 1; sub_j < cfg->rnap_subunits; sub_j++) {
                 if (sub_i == sub_j) continue;
 
                 double *Rj = R_rnap[rnap_i][sub_j];
@@ -584,15 +984,18 @@ void lennard_jones_forces_rnap_rnap(
                 double dy = Ri[1] - Rj[1];
                 double dz = Ri[2] - Rj[2];
                 double r2 = dx * dx + dy * dy + dz * dz;
-                if (r2 > cut_rnap2 || r2 == 0.0)
+
+                const double eps = 1e-12;
+                if (r2 > cut_rnap2 || r2 < eps)
                     continue;
 
-                double r8  = r2 * r2 * r2 * r2;
-                double r14 = r8 * r2 * r2 * r2;
+                
+                double inv_r2 = 1.0/r2;
+                double inv_r6 = inv_r2*inv_r2*inv_r2;
+                double inv_r12 = inv_r6*inv_r6;
 
                 // Force modifiée : plus répulsive entre sous-unités d’un même RNAP
-                double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
-                                - 6.0 * epsilon_att * sigma6 / r8);
+                double f = 24.0 * (epsilon_rep*2.0*sigma12*inv_r12 - epsilon_att*sigma6*inv_r6) * inv_r2;
 
                 const double f_max = 300.0;
                 if (f > f_max)
@@ -608,9 +1011,106 @@ void lennard_jones_forces_rnap_rnap(
             }
         }
     }
+}*/
+
+void lennard_jones_forces_rnap_rnap(
+    const Config *cfg,
+    double ***R_rnap,
+    int nb_rnap,
+    double epsilon,
+    double sigma6,
+    double sigma12,
+    double cut_rnap2,   // ATTENTION: cutoff^2
+    double Delta,
+    int *l_rnap
+)
+{
+    const double eps2 = 1e-12;
+
+    // Tes choix
+    const double epsilon_rep = 100.0 * epsilon;
+    const double epsilon_att = 1.0   * epsilon;
+
+    // Clamp sur le déplacement: s = Delta * f
+    // s multiplie (dx,dy,dz) donc il a dimension ~ 1/r^2 (selon ton schéma),
+    // mais en pratique ça borne |Δr| ~ |s| * r.
+    const double s_max_inter = 0.02;  // inter-RNAP : à ajuster
+    const double s_max_intra = 0.02;  // intra-RNAP : à ajuster
+
+    for (int rnap_i = 0; rnap_i < nb_rnap; rnap_i++) {
+        if (l_rnap && l_rnap[rnap_i] < 0) continue;
+
+        for (int sub_i = 0; sub_i < cfg->rnap_subunits; sub_i++) {
+
+            double *Ri = R_rnap[rnap_i][sub_i];
+
+            /* =========================
+               RNAP_i ↔ RNAP_j (j > i)
+               ========================= */
+            for (int rnap_j = rnap_i + 1; rnap_j < nb_rnap; rnap_j++) {
+                if (l_rnap && l_rnap[rnap_j] < 0) continue;
+
+                for (int sub_j = 0; sub_j < cfg->rnap_subunits; sub_j++) {
+
+                    double *Rj = R_rnap[rnap_j][sub_j];
+
+                    double dx = Ri[0] - Rj[0];
+                    double dy = Ri[1] - Rj[1];
+                    double dz = Ri[2] - Rj[2];
+
+                    double r2 = dx*dx + dy*dy + dz*dz;
+                    if (r2 < eps2 || r2 > cut_rnap2) continue;
+
+                    // r^8 et r^14 à partir de r^2 (comme ton code)
+                    double r4  = r2 * r2;
+                    double r8  = r4 * r4;
+                    double r14 = r8 * r4 * r2; // r^8 * r^4 * r^2 = r^14
+
+                    // f est le scalaire tel que F_vec = f * r_vec
+                    double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
+                                    - 6.0  * epsilon_att * sigma6  / r8);
+
+                    // Clamp sur le déplacement (scalaire) s = Delta*f
+                    double s = Delta * f;
+                    if (s >  s_max_inter) s =  s_max_inter;
+                    if (s < -s_max_inter) s = -s_max_inter;
+
+                    Ri[0] += s * dx;  Ri[1] += s * dy;  Ri[2] += s * dz;
+                    Rj[0] -= s * dx;  Rj[1] -= s * dy;  Rj[2] -= s * dz;
+                }
+            }
+
+            /* =========================
+               Intra-RNAP (sub_j > sub_i)
+               ========================= */
+            for (int sub_j = sub_i + 1; sub_j < cfg->rnap_subunits; sub_j++) {
+
+                double *Rj = R_rnap[rnap_i][sub_j];
+
+                double dx = Ri[0] - Rj[0];
+                double dy = Ri[1] - Rj[1];
+                double dz = Ri[2] - Rj[2];
+
+                double r2 = dx*dx + dy*dy + dz*dz;
+                if (r2 < eps2 || r2 > cut_rnap2) continue;
+
+                double r4  = r2 * r2;
+                double r8  = r4 * r4;
+                double r14 = r8 * r4 * r2;
+
+                double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
+                                - 6.0  * epsilon_att * sigma6  / r8);
+
+                double s = Delta * f;
+                if (s >  s_max_intra) s =  s_max_intra;
+                if (s < -s_max_intra) s = -s_max_intra;
+
+                Ri[0] += s * dx;  Ri[1] += s * dy;  Ri[2] += s * dz;
+                Rj[0] -= s * dx;  Rj[1] -= s * dy;  Rj[2] -= s * dz;
+            }
+        }
+    }
 }
-
-
 
 
 

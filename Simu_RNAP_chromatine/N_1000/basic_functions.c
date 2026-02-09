@@ -909,8 +909,8 @@ void creation_polymere_aleatoire(int N, double a, double **R){
     for(int i = 1; i < N; i++){
         double phi = genrand_real2() * 2 * PI;
         double theta = genrand_real2() * PI;
-        R[i][0] = R[i-1][0] + a * sin(theta) * cos(phi);
-        R[i][1] = R[i-1][1] + a * sin(theta) * sin(phi);
-        R[i][2] = R[i-1][2] + a * cos(theta);
+        R[i][0] = R[i-1][0] + 2 * sin(theta) * cos(phi);
+        R[i][1] = R[i-1][1] + 2 * sin(theta) * sin(phi);
+        R[i][2] = R[i-1][2] + 2 * cos(theta);
     }
 }

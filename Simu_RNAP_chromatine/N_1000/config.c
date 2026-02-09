@@ -47,15 +47,15 @@ Config parse_config(int argc, char *argv[])
     cfg.N               = 1000;
     cfg.a               = 1;
     cfg.alpha           = 1.0;
-    cfg.K               = 1000.0;
+    cfg.K               = 10.0;
     cfg.K_rnap          = 500.0;
     cfg.K_bend          = 0.0;
     cfg.Delta           = 1e-4;
     cfg.epsilon         = 0.0024;
     cfg.epsilon_rnap    = 0.0024;
-    cfg.sigma           = cfg.a;
-    cfg.sigma6 = pow(cfg.sigma,6);
-    cfg.sigma12 = pow(cfg.sigma,12);
+    cfg.sigma           = 1.1*cfg.a;
+    cfg.sigma6          = pow(cfg.sigma,6);
+    cfg.sigma12         = pow(cfg.sigma,12);
     cfg.debut_segment   = 300;
     cfg.fin_segment     = 400;
     cfg.rnap_subunits   = 8;
@@ -66,6 +66,7 @@ Config parse_config(int argc, char *argv[])
     cfg.r_conf = 10.77;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
+    cfg.rnap_refract_time = 1e5;
 
     // print_header("Paramètres par défaut");
 
@@ -95,11 +96,11 @@ Config parse_config(int argc, char *argv[])
 
 
     cfg.attache = 0; // attache
-    cfg.confinement = 1; // confinement
+    cfg.confinement = 0; // confinement
     cfg.plan = 0; // plan
     cfg.bending = 0; // bending
     cfg.critere = 1; // critere
-    cfg.temperature = 1; // temperature
+    cfg.temperature = 0; // temperature
     cfg.equilibriate = 1; // Mise a l'équilibre du système avant calcul
     cfg.quench = 0;
         
@@ -142,7 +143,7 @@ Config parse_config(int argc, char *argv[])
         printf("T1 = %d\n", cfg.T);
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.T =  k * N_rec;
-        cfg.T + 10000
+        cfg.T = 1000000;
         printf("Tf = %d\n", cfg.T);
 
         cfg.periode_enregistrement = k;  // periode_enregistrement
@@ -161,9 +162,6 @@ Config parse_config(int argc, char *argv[])
     {
         cfg.vitesse_rnap = 0;
     }
-    
-    
-
     
     // cfg.periode_enregistrement = k;  // periode_enregistrement
     // printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
@@ -188,18 +186,18 @@ Config parse_config(int argc, char *argv[])
 
 
     // --- RNAP
-    cfg.a_rnap = cfg.alpha; 
-    cfg.a_transpt = (cfg.alpha + 1)/2;
-    cfg.mono_transcrpt = 10; 
-    cfg.sigma_rnap = (cfg.alpha + 1)/2; 
-    cfg.sigma6_rnap = pow(cfg.sigma_rnap, 6);
-    cfg.sigma12_rnap = pow(cfg.sigma_rnap, 12);
+    cfg.a_rnap              = cfg.alpha; 
+    cfg.a_transpt           = (cfg.alpha + 1)/2;
+    cfg.mono_transcrpt      = 10; 
+    cfg.sigma_rnap          = 1.2*(cfg.alpha + 1)/2; 
+    cfg.sigma6_rnap         = pow(cfg.sigma_rnap, 6);
+    cfg.sigma12_rnap        = pow(cfg.sigma_rnap, 12);
 
-    cfg.sigma_rnap2 = cfg.alpha; 
-    cfg.sigma6_rnap2 = pow(cfg.sigma_rnap2, 6);
-    cfg.sigma12_rnap2 = pow(cfg.sigma_rnap2, 12);
+    cfg.sigma_rnap2         = cfg.alpha; 
+    cfg.sigma6_rnap2        = pow(cfg.sigma_rnap2, 6);
+    cfg.sigma12_rnap2       = pow(cfg.sigma_rnap2, 12);
 
-    cfg.dx_avancement_rnap = cfg.vitesse_rnap * cfg.Delta; 
+    cfg.dx_avancement_rnap  = cfg.vitesse_rnap * cfg.Delta; 
 
 
     // === Noms des fichiers ===

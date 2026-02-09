@@ -49,33 +49,156 @@ void force_bille_bille(double** R1,double** R2, double K_cohesine, double dist, 
 // Structure pour représenter la liste de voisins pour chaque particule
 
 
-void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
-                          double epsilon, double sigma6, double sigma12,
-                          double Delta, int attache,
-                          int periode_enregistrement_force,
-                          FILE* fichier_force_LJ, int t) {
+// void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
+//                           double epsilon, double sigma6, double sigma12,
+//                           double Delta, int attache,
+//                           int periode_enregistrement_force,
+//                           FILE* fichier_force_LJ, int t) {
 
-    double epsilon_att = epsilon; 
-    double epsilon_rep = epsilon; 
-    double deplacement = 0.0; 
-    double e = 300;
+//     double epsilon_att = epsilon; 
+//     double epsilon_rep = epsilon; 
+//     double deplacement = 0.0; 
+//     double e = 300;
 
-    double total_force = 0.0;
+//     double total_force = 0.0;
+//     int nb_paires = 0;
+
+//     if (t % periode_enregistrement_force == 0) {
+//         fprintf(fichier_force_LJ, "TIMESTEP: %d\n", t);
+//     }
+
+//     for (int i = 1; i < N - 1; i++) {
+//         if (t % periode_enregistrement_force == 0) {
+//             fprintf(fichier_force_LJ, "Particule: %d\n", i);
+//         }
+
+//         for (int k = 0; k < neighbor_lists[i].count; k++) {
+//             int j = neighbor_lists[i].neighbors[k];
+//             if (j < i ){continue;}
+
+//             if (t % periode_enregistrement_force == 0) {
+//                 fprintf(fichier_force_LJ, "NEIGHBOR: %d ", j);
+//             }
+
+//             double dx = R[i][0] - R[j][0];
+//             double dy = R[i][1] - R[j][1];
+//             double dz = R[i][2] - R[j][2];
+
+//             double r2 = dx * dx + dy * dy + dz * dz;
+//             double r8 = r2 * r2 * r2 * r2;
+//             double r14 = r8 * r2 * r2 * r2;
+
+//             double f = 4 * (12 * epsilon_rep * sigma12 / r14 - 6 * epsilon_att * sigma6 / r8);
+//             if (f > e) f = e;
+
+//             double fx = f * dx;
+//             double fy = f * dy;
+//             double fz = f * dz;
+//             double norm_f = sqrt(fx * fx + fy * fy + fz * fz);
+
+//             total_force += norm_f;
+//             nb_paires++;
+
+//             // Application des forces
+//             if (attache == 1) {
+//                 if (i != 0 && i != N - 1) {
+//                     R[i][0] += Delta * fx;
+//                     R[i][1] += Delta * fy;
+//                     R[i][2] += Delta * fz;
+//                 }
+//                 if (j != 0 && j != N - 1) {
+//                     R[j][0] -= Delta * fx;
+//                     R[j][1] -= Delta * fy;
+//                     R[j][2] -= Delta * fz;
+//                 }
+//             }
+
+//             if (attache == 0) {
+//                 if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fx);
+//                 deplacement = -R[i][0];
+//                 R[i][0] += Delta * fx;
+//                 deplacement += R[i][0];
+//                 if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
+
+//                 if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fy);
+//                 deplacement = -R[i][1];
+//                 R[i][1] += Delta * fy;
+//                 deplacement += R[i][1];
+//                 if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
+
+//                 if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fz);
+//                 deplacement = -R[i][2];
+//                 R[i][2] += Delta * fz;
+//                 deplacement += R[i][2];
+//                 if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
+
+//                 R[j][0] -= Delta * fx;
+//                 R[j][1] -= Delta * fy;
+//                 R[j][2] -= Delta * fz;
+//             }
+
+//             if (t % periode_enregistrement_force == 0) {
+//                 fprintf(fichier_force_LJ, "\n");
+//             }
+//         }
+//     }
+
+//     if (t % periode_enregistrement_force == 0 && nb_paires > 0) {
+//         double force_moyenne = total_force / nb_paires;
+//         fprintf(fichier_force_LJ, "# Force moyenne LJ : %lf\n", force_moyenne);
+//     }
+// }
+
+void lennard_jones_forces(
+    double **R,
+    NeighborList *neighbor_lists,
+    int N,
+    double epsilon,   
+    double sigma6,
+    double sigma12,
+    double Delta,
+    int attache, // 1: ne bouge pas les extrémités, 0: bouge tout
+    int periode_enregistrement_force,
+    FILE *fichier_force_LJ,
+    int t
+) {
+    double epsilon_rep = 2 * epsilon; 
+    double epsilon_att = 0.2 * epsilon;
+
+    const double r2_min = 1e-12;      // évite division par 0
+    const double fcoef_max = 1000.0;   // clamp symétrique sur le coef scalaire
+
+    // Accumulation des forces
+    double (*F)[3] = calloc((size_t)N, sizeof(*F));
+    if (!F) {
+        fprintf(stderr, "Erreur: allocation forces LJ impossible\n");
+        return;
+    }
+
+    double total_pair_force = 0.0;
     int nb_paires = 0;
 
-    if (t % periode_enregistrement_force == 0) {
+    const int do_log = (periode_enregistrement_force > 0) &&
+                       (t % periode_enregistrement_force == 0);
+
+    if (do_log) {
         fprintf(fichier_force_LJ, "TIMESTEP: %d\n", t);
     }
 
-    for (int i = 1; i < N - 1; i++) {
-        if (t % periode_enregistrement_force == 0) {
+    // Boucle sur toutes les particules (inclut 0 et N-1)
+    for (int i = 0; i < N; i++) {
+        if (do_log) {
             fprintf(fichier_force_LJ, "Particule: %d\n", i);
         }
 
         for (int k = 0; k < neighbor_lists[i].count; k++) {
             int j = neighbor_lists[i].neighbors[k];
 
-            if (t % periode_enregistrement_force == 0) {
+            // éviter double comptage
+            if (j <= i) continue;
+            if (j < 0 || j >= N) continue; // sécurité
+
+            if (do_log) {
                 fprintf(fichier_force_LJ, "NEIGHBOR: %d ", j);
             }
 
@@ -83,70 +206,69 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
             double dy = R[i][1] - R[j][1];
             double dz = R[i][2] - R[j][2];
 
-            double r2 = dx * dx + dy * dy + dz * dz;
-            double r8 = r2 * r2 * r2 * r2;
-            double r14 = r8 * r2 * r2 * r2;
+            double r2 = dx*dx + dy*dy + dz*dz;
+            if (r2 < r2_min) {
+                if (do_log) fprintf(fichier_force_LJ, "SKIP r2~0\n");
+                continue;
+            }
 
-            double f = 4 * (12 * epsilon_rep * sigma12 / r14 - 6 * epsilon_att * sigma6 / r8);
-            if (f > e) f = e;
+            // r^8 et r^14 (comme dans ta version)
+            double r4  = r2 * r2;
+            double r8  = r4 * r4;          // r^8
+            double r14 = r8 * r4 * r2;     // r^(8+4+2) = r^14
 
-            double fx = f * dx;
-            double fy = f * dy;
-            double fz = f * dz;
-            double norm_f = sqrt(fx * fx + fy * fy + fz * fz);
+            // coef scalaire tel que F_vec = fcoef * r_vec
+            // F = 4 * [ 12 eps_rep sigma^12 / r^14 - 6 eps_att sigma^6 / r^8 ] * r_vec
+            double fcoef = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
+                                - 6.0  * epsilon_att * sigma6  / r8);
 
-            total_force += norm_f;
+            // clamp symétrique
+            if (fcoef >  fcoef_max) fcoef =  fcoef_max;
+            if (fcoef < -fcoef_max) fcoef = -fcoef_max;
+
+            double fx = fcoef * dx;
+            double fy = fcoef * dy;
+            double fz = fcoef * dz;
+
+            double norm_f = sqrt(fx*fx + fy*fy + fz*fz);
+            total_pair_force += norm_f;
             nb_paires++;
 
-            // Application des forces
-            if (attache == 1) {
-                if (i != 0 && i != N - 1) {
-                    R[i][0] += Delta * fx;
-                    R[i][1] += Delta * fy;
-                    R[i][2] += Delta * fz;
-                }
-                if (j != 0 && j != N - 1) {
-                    R[j][0] -= Delta * fx;
-                    R[j][1] -= Delta * fy;
-                    R[j][2] -= Delta * fz;
-                }
-            }
+            // accumulation action-réaction
+            F[i][0] += fx;  F[i][1] += fy;  F[i][2] += fz;
+            F[j][0] -= fx;  F[j][1] -= fy;  F[j][2] -= fz;
 
-            if (attache == 0) {
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fx);
-                deplacement = -R[i][0];
-                R[i][0] += Delta * fx;
-                deplacement += R[i][0];
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
-
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fy);
-                deplacement = -R[i][1];
-                R[i][1] += Delta * fy;
-                deplacement += R[i][1];
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
-
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fz);
-                deplacement = -R[i][2];
-                R[i][2] += Delta * fz;
-                deplacement += R[i][2];
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
-
-                R[j][0] -= Delta * fx;
-                R[j][1] -= Delta * fy;
-                R[j][2] -= Delta * fz;
-            }
-
-            if (t % periode_enregistrement_force == 0) {
-                fprintf(fichier_force_LJ, "\n");
+            if (do_log) {
+                // tu peux logger ce que tu veux ici (force paire)
+                fprintf(fichier_force_LJ, "fx=%g fy=%g fz=%g |F|=%g\n", fx, fy, fz, norm_f);
             }
         }
     }
 
-    if (t % periode_enregistrement_force == 0 && nb_paires > 0) {
-        double force_moyenne = total_force / nb_paires;
-        fprintf(fichier_force_LJ, "# Force moyenne LJ : %lf\n", force_moyenne);
+    // Application des déplacements (Euler explicite)
+    for (int i = 0; i < N; i++) {
+        if (attache == 1 && (i == 0 || i == N-1)) continue;
+
+        double oldx = R[i][0], oldy = R[i][1], oldz = R[i][2];
+        R[i][0] += Delta * F[i][0];
+        R[i][1] += Delta * F[i][1];
+        R[i][2] += Delta * F[i][2];
+
+        if (do_log) {
+            fprintf(fichier_force_LJ,
+                    "MOVE i=%d dX=%g dY=%g dZ=%g\n",
+                    i, R[i][0]-oldx, R[i][1]-oldy, R[i][2]-oldz);
+        }
     }
+
+    if (do_log && nb_paires > 0) {
+        fprintf(fichier_force_LJ, "# Force moyenne LJ (par paire) : %g\n",
+                total_pair_force / nb_paires);
+    }
+
+    free(F);
 }
+
 
 
 void f_bending_forces(double **R, double **t_link, double **bending_forces, double K_bend, int N, int t){

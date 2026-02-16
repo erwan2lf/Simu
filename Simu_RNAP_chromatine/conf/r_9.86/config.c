@@ -116,12 +116,10 @@ Config parse_config(int argc, char *argv[])
 
     if(cfg.nb_rnap_initial == 0)
     {
-
         cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
-        cfg.T = cfg.T + cfg.T/10;
         // cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
-        cfg.T_eq = cfg.T/10;
+        cfg.T_eq = cfg.T/2;
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.periode_enregistrement = k;  // periode_enregistrement

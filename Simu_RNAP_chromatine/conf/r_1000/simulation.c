@@ -775,6 +775,12 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             fprintf(f->fichier_voisin, "\n");
         }
 
+
+        if (cfg->confinement == 1)
+        {
+            confinement_sphere(cfg, sv, t);
+        }
+
         polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
@@ -786,8 +792,6 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
 
 
         /////////// Boucle sur les RNAPS /////////////
-
-        sv->R = sv->R_new;
         
         lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon, cfg->sigma6, cfg->sigma12, cfg->Delta, cfg->attache, cfg->periode_force, f->fichier_force_LJ, t);
         lennard_jones_forces_rnap(

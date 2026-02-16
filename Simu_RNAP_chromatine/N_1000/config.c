@@ -144,6 +144,8 @@ Config parse_config(int argc, char *argv[])
     }
     else
     {
+
+	cfg.T_eq = 1e6;
         cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (cfg.nb_rnap_initial)) / (cfg.vitesse_rnap * cfg.Delta) );
         printf("T0 = %d\n", cfg.T);
         cfg.T = cfg.T + cfg.T/10;

@@ -63,7 +63,7 @@ Config parse_config(int argc, char *argv[])
     cfg.rayon_ecrantage_LJ_rnap  = 2.0;
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
-    cfg.r_conf = 9.84;
+    cfg.r_conf = 100000;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
 

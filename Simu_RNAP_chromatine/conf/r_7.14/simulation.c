@@ -775,6 +775,12 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             fprintf(f->fichier_voisin, "\n");
         }
 
+
+        if (cfg->confinement == 1)
+        {
+            confinement_sphere(cfg, sv, t);
+        }
+
         polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
@@ -786,8 +792,6 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
 
 
         /////////// Boucle sur les RNAPS /////////////
-
-        sv->R = sv->R_new;
         
         lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon, cfg->sigma6, cfg->sigma12, cfg->Delta, cfg->attache, cfg->periode_force, f->fichier_force_LJ, t);
         lennard_jones_forces_rnap(
@@ -797,6 +801,7 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new, sv->compteur_grand_deplacement);
+        enregistrement_data(sv, cfg, f, t);
 
 
         end = clock();  
@@ -809,29 +814,6 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             double duree_sec = duree_tot - (duree_min * 60);
             temps_restant = duree_boucle * (cfg->T-t-1) / 60;
             printf("%d/%.d %.f:%.f %.2fmin std %.10f moy %.10f\n",t, cfg->T_eq, duree_min, duree_sec, temps_restant, mesures.std, mesures.moyenne);   
-        }
-
-        if(t%cfg->periode_enregistrement == 0){
-            if(sv->nb_rnap > 0){
-                enregistrement_RNAP(
-                    f->fichier,                 
-                    sv->R,                     
-                    cfg->N,                     
-                    sv->R_rnap,                 
-                    sv->nb_rnap,                
-                    t,                          
-                    sv->positions_bille_rnap,   
-                    cfg->rnap_subunits,         
-                    cfg->nb_rnap_initial,      
-                    sv->l_rnap, 
-                    sv,
-                    cfg               
-                );
-                // enregistrement_RNAP_position(f->fichier_rnap, sv->nb_rnap, t, sv->positions_bille_rnap, sv->avancement_transcription[0]);
-            }
-            else{
-                enregistrement(f->fichier, sv->R, cfg->N, t);
-            }
         }
     }
 }

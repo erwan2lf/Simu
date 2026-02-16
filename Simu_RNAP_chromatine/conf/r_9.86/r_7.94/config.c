@@ -63,7 +63,7 @@ Config parse_config(int argc, char *argv[])
     cfg.rayon_ecrantage_LJ_rnap  = 2.0;
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
-    cfg.r_conf = 100000;
+    cfg.r_conf = 7.94;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
 
@@ -121,7 +121,7 @@ Config parse_config(int argc, char *argv[])
         cfg.T = cfg.T + cfg.T/10;
         // cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
-        //cfg.T_eq = cfg.T/10;
+        cfg.T_eq = cfg.T/10;
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.periode_enregistrement = k;  // periode_enregistrement

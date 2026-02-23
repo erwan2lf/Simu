@@ -135,8 +135,8 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
     if (t % periode_enregistrement_force == 0) {
         double moyenne_thermique = total_force_thermique / N;
         double moyenne_harmonique = total_force_harmonique / N;
-        fprintf(fichier_force, "# Moyennes (thermique | harmonique): %lf %lf\n", moyenne_thermique, moyenne_harmonique);
-        fprintf(fichier_force, "# CSV: %d,%lf,%lf\n", t, moyenne_thermique, moyenne_harmonique);
+        // fprintf(fichier_force, "# Moyennes (thermique | harmonique): %lf %lf\n", moyenne_thermique, moyenne_harmonique);
+        // fprintf(fichier_force, "# CSV: %d,%lf,%lf\n", t, moyenne_thermique, moyenne_harmonique);
     }
 }
 

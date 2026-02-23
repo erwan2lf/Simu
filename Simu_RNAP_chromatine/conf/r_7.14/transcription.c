@@ -260,19 +260,19 @@ void mvt_brownian_harmonic_force_RNAP(int p, int pmin, int pmax, int rnap, doubl
     dmax = distance(R[pmax], R[p]);
     double deplacement = 0.0;
 
-    if(t % periode_enregistrement_force == 0)
-    {
-        fprintf(fichier_force_rnap, "%d %d ", rnap, p);
-        fprintf(fichier_force_thermique, "%d %d ", rnap, p);
-    }
+    // if(t % periode_enregistrement_force == 0)
+    // {
+    //     fprintf(fichier_force_rnap, "%d %d ", rnap, p);
+    //     fprintf(fichier_force_thermique, "%d %d ", rnap, p);
+    // }
     for(int j = 0; j < 3; j ++)
     {
         pot_harm[j] = K * ((R[pmax][j] - R[p][j]) * (1- alpha/dmax) + (R[pmin][j] - R[p][j]) * (1 - alpha/dmin));
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap, "%f ",pot_harm[j]);}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap, "%f ",pot_harm[j]);}
         deplacement = - R[p][j];
         R[p][j] += Delta * pot_harm[j];
         deplacement += R[p][j]; 
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap, "%f ", deplacement);}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap, "%f ", deplacement);}
     }
     for (int j = 0; j < 3; j++)
     {
@@ -284,45 +284,45 @@ void mvt_brownian_harmonic_force_RNAP(int p, int pmin, int pmax, int rnap, doubl
         {
             F_alea = 0;
         }
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_thermique, "%f ", F_alea);}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_thermique, "%f ", F_alea);}
         // F_alea = 0;
         deplacement = - R[p][j];
         R[p][j] += F_alea;
         deplacement += R[p][j]; 
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_thermique, "%f ", deplacement);}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_thermique, "%f ", deplacement);}
     }
-     if(t % periode_enregistrement_force == 0){fprintf(fichier_force_thermique, "\n");}
-     if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap, "\n");}
+    //  if(t % periode_enregistrement_force == 0){fprintf(fichier_force_thermique, "\n");}
+    //  if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap, "\n");}
 }
 
 
 void liaison_sup(double alpha, double K_transpt, double Delta, double** r, int p1, int p2, FILE* fichier_force_rnap_2, int t, int periode_enregistrement_force){ 
         double dist = distance(r[p2], r[p1]);
         double deplacement = 0.0; 
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%d ",p1);}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%d ",p1);}
 
         for(int j = 0; j < 3; j ++ ){
             if(t % periode_enregistrement_force == 0){
-                fprintf(fichier_force_rnap_2, "%lf ", K_transpt * (r[p2][j] - r[p1][j]) * (1 - alpha/dist));
+                // fprintf(fichier_force_rnap_2, "%lf ", K_transpt * (r[p2][j] - r[p1][j]) * (1 - alpha/dist));
             }
             deplacement = - r[p1][j];
             r[p1][j] +=   Delta * K_transpt * (r[p2][j] - r[p1][j]) * (1 - alpha/dist);
             deplacement += r[p1][j];
-            if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2,"%lf ", deplacement);}
+            // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2,"%lf ", deplacement);}
             
         }
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "\n");}
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%d ",p2);}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "\n");}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%d ",p2);}
 
 
         for (int j = 0; j < 3; j++) {
-            if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%lf ", - K_transpt * (r[p2][j] - r[p1][j]) * (1 - alpha/dist));}
+            // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%lf ", - K_transpt * (r[p2][j] - r[p1][j]) * (1 - alpha/dist));}
             deplacement = - r[p2][j];
             r[p2][j] += - Delta * K_transpt * (r[p2][j] - r[p1][j]) * (1 - alpha/dist);
             deplacement += r[p2][j];
-            if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%lf ", deplacement);}
+            // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "%lf ", deplacement);}
         }
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "\n");}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap_2, "\n");}
 }
 
 
@@ -363,8 +363,8 @@ void bond_rnap_bead_progressive_mvt(
     int p1  = mono_transcrpt + 1;
 
     if (t % periode_enregistrement_force == 0 && fichier_force_lea) {
-        fprintf(fichier_force_lea, "t=%d RNAP-bond progressive (p=%d → p+1)\n", t, p);
-        fprintf(fichier_force_lea, "weights: w0=%.6g w1=%.6g (s=%.6g s_eff=%.6g)\n", w0, w1, dx_avancement_rnap, s_eff);
+        // fprintf(fichier_force_lea, "t=%d RNAP-bond progressive (p=%d → p+1)\n", t, p);
+        // fprintf(fichier_force_lea, "weights: w0=%.6g w1=%.6g (s=%.6g s_eff=%.6g)\n", w0, w1, dx_avancement_rnap, s_eff);
     }
 
     for (int sub = 0; sub < NB_SUBUNITS; ++sub) {
@@ -407,38 +407,38 @@ void bond_rnap_bead_progressive_mvt(
         R[p1][1] -= Delta * w1 * Fy;
         R[p1][2] -= Delta * w1 * Fz;
 
-        if (t % periode_enregistrement_force == 0 && fichier_force_lea) {
-            fprintf(fichier_force_lea,
-                " subunit=%d  dist0=%.4g dist1=%.4g  F=(%.4g,%.4g,%.4g)\n",
-                sub, dist0, dist1, Fx, Fy, Fz
-            );
-        }
+        // if (t % periode_enregistrement_force == 0 && fichier_force_lea) {
+        //     fprintf(fichier_force_lea,
+        //         " subunit=%d  dist0=%.4g dist1=%.4g  F=(%.4g,%.4g,%.4g)\n",
+        //         sub, dist0, dist1, Fx, Fy, Fz
+        //     );
+        // }
     }
 
-    if (t % periode_enregistrement_force == 0 && fichier_force_lea) {
-        fprintf(fichier_force_lea, "\n");
-        fflush(fichier_force_lea);
-    }
+    // if (t % periode_enregistrement_force == 0 && fichier_force_lea) {
+    //     fprintf(fichier_force_lea, "\n");
+    //     fflush(fichier_force_lea);
+    // }
 }
 
 
 void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap, double **R, int N, NeighborList_rnap **neighbor_lists, double epsilon, double sigma6, double sigma12, double sigma6rnap2, double sigma12rnap2, double cut_rnap2, double Delta, int t, FILE* test, int T, FILE* fichier_force_rnap, int periode_enregistrement_force, int* l_rnap){
-    if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"TIMESTEP: %d\n",t);}
+    // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"TIMESTEP: %d\n",t);}
     double deplacement = 0.0;
     for (int rnap = 0; rnap < nb_rnap; rnap++) 
     {
         if(l_rnap[rnap]<0){continue;}
         
-        if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"RNAP: %d\n",rnap);}
+        // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"RNAP: %d\n",rnap);}
 
         for (int subunit = 0; subunit < cfg->rnap_subunits ; subunit++)
         {
-            if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"SUBUNIT: %d\n",subunit);}
+            // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"SUBUNIT: %d\n",subunit);}
 
             for (int k = 0; k < neighbor_lists[rnap][subunit].count; k++)
             {
                 int j = neighbor_lists[rnap][subunit].neighbors[k];
-                if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"NEIGHBOR: %d ",j);}
+                // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"NEIGHBOR: %d ",j);}
                 double *Ri = R_rnap[rnap][subunit], *Rj = R[j];
                 
                 double dx = Ri[0] - Rj[0];
@@ -457,24 +457,24 @@ void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap,
                 if (f > e) {f = e;}
 
 
-                if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", f * dx);}
+                // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", f * dx);}
                 deplacement = - Ri[0];
                 Ri[0] += Delta * f * dx;
                 deplacement += Ri[0];
-                if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", deplacement);}
+                // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", deplacement);}
                 
 
-                if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", f * dy);}
+                // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", f * dy);}
                 deplacement = - Ri[1];
                 Ri[1] += Delta * f * dy;
                 deplacement += Ri[1];
-                if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", deplacement);}
+                // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", deplacement);}
                
-                if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", f * dz);}
+                // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f ", f * dz);}
                 deplacement = - Ri[2];
                 Ri[2] += Delta * f * dz;
                 deplacement += Ri[2];
-                if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f\n", deplacement);}
+                // if(t % periode_enregistrement_force == 0){fprintf(fichier_force_rnap,"%f\n", deplacement);}
                 
                 Rj[0] -= Delta * f * dx;
                 Rj[1] -= Delta * f * dy;

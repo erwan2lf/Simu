@@ -88,7 +88,7 @@ int main(int argc, char*argv[])
             snprintf(
                 file_path,
                 sizeof(file_path),
-                "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_/brownian_LJ.lammpstrj",
+                "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_%lu/brownian_LJ.lammpstrj",
                 cfg.seed
             );
         #else 

@@ -50,8 +50,8 @@ Config parse_config(int argc, char *argv[])
     cfg.temperature = 1; // temperature
     cfg.equilibriate = 1; // Mise a l'équilibre du système avant calcul
     cfg.quench = 0;
-    cfg.cohesine = 1; 
-    cfg.freq_cohesine = 100;
+    cfg.cohesine = 0; 
+    cfg.freq_cohesine = 0;
 
 
 
@@ -124,12 +124,9 @@ Config parse_config(int argc, char *argv[])
     {
 
         cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
-        cfg.T = cfg.T + cfg.T/10;
         // cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
-        cfg.T_eq = 1e6;
-
-        cfg.T = 220000;
+        cfg.T_eq = cfg.T / 2;
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.periode_enregistrement = k;  // periode_enregistrement

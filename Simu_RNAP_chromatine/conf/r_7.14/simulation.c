@@ -440,57 +440,57 @@ void creation_1_rnap_erwan(const Config *cfg, double **R, int id_rnap, int *posi
 
 void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
-    if(t%cfg->periode_msd == 0){
-            for(int i = 0; i < cfg->Nm; i++){
-                for(int j = 0; j < 3; j++){
-                    sv->R_monomere_arrays[(int)t/cfg->periode_msd][i][j] = sv->R[sv->list_monomere[i]][j];
-                }
-            }
-        }
+    // if(t%cfg->periode_msd == 0){
+    //         for(int i = 0; i < cfg->Nm; i++){
+    //             for(int j = 0; j < 3; j++){
+    //                 sv->R_monomere_arrays[(int)t/cfg->periode_msd][i][j] = sv->R[sv->list_monomere[i]][j];
+    //             }
+    //         }
+    //     }
 
-    if(t%cfg->periode_correlation == 0){
-            for ( int i = 0; i < 3; i++){
-                sv->Rbb[t/cfg->periode_correlation][i] = sv->R[cfg->N-2][i] - sv->R[0][i];
-                sv->R_segment[t/cfg->periode_correlation][i] = sv->R[cfg->fin_segment][i] - sv->R[cfg->debut_segment][i];
+    // if(t%cfg->periode_correlation == 0){
+    //         for ( int i = 0; i < 3; i++){
+    //             sv->Rbb[t/cfg->periode_correlation][i] = sv->R[cfg->N-2][i] - sv->R[0][i];
+    //             sv->R_segment[t/cfg->periode_correlation][i] = sv->R[cfg->fin_segment][i] - sv->R[cfg->debut_segment][i];
                 
-            }
-            fprintf(f->fichier_endtoend, "%f %d \n", distance(sv->R[0], sv->R[cfg->N-1]), t/cfg->periode_correlation);
-            fprintf(f->fichier_correl_segment, "%f %d \n", distance(sv->R[cfg->debut_segment], sv->R[cfg->fin_segment]), t/cfg->periode_correlation);
+    //         }
+    //         fprintf(f->fichier_endtoend, "%f %d \n", distance(sv->R[0], sv->R[cfg->N-1]), t/cfg->periode_correlation);
+    //         fprintf(f->fichier_correl_segment, "%f %d \n", distance(sv->R[cfg->debut_segment], sv->R[cfg->fin_segment]), t/cfg->periode_correlation);
 
 
-        }
+    //     }
     
-        if(t%cfg->periode_centre_de_masse == 0){
-            for(int i = 0; i < cfg->N; i ++){
+    //     if(t%cfg->periode_centre_de_masse == 0){
+    //         for(int i = 0; i < cfg->N; i ++){
                 
-                sv->R_centre_de_masse[(int)t/cfg->periode_centre_de_masse][0] += sv->R[i][0];
-                sv->R_centre_de_masse[(int)t/cfg->periode_centre_de_masse][1] += sv->R[i][1];
-                sv->R_centre_de_masse[(int)t/cfg->periode_centre_de_masse][2] += sv->R[i][2];
+    //             sv->R_centre_de_masse[(int)t/cfg->periode_centre_de_masse][0] += sv->R[i][0];
+    //             sv->R_centre_de_masse[(int)t/cfg->periode_centre_de_masse][1] += sv->R[i][1];
+    //             sv->R_centre_de_masse[(int)t/cfg->periode_centre_de_masse][2] += sv->R[i][2];
 
-                sv->stock_cdm[(int)t/cfg->periode_centre_de_masse][0] = sv->R[i][0];
-                sv->stock_cdm[(int)t/cfg->periode_centre_de_masse][1] = sv->R[i][1];
-                sv->stock_cdm[(int)t/cfg->periode_centre_de_masse][2] = sv->R[i][2];
+    //             sv->stock_cdm[(int)t/cfg->periode_centre_de_masse][0] = sv->R[i][0];
+    //             sv->stock_cdm[(int)t/cfg->periode_centre_de_masse][1] = sv->R[i][1];
+    //             sv->stock_cdm[(int)t/cfg->periode_centre_de_masse][2] = sv->R[i][2];
                  
-            }
-        }
+    //         }
+    //     }
 
-        if(t%cfg->periode_endtoend == 0){
+        // if(t%cfg->periode_endtoend == 0){
 
-            sv->stock[t/cfg->periode_endtoend][0] = distance(sv->R[0], sv->R[cfg->N-1]);
-            sv->stock[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend; 
+        //     sv->stock[t/cfg->periode_endtoend][0] = distance(sv->R[0], sv->R[cfg->N-1]);
+        //     sv->stock[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend; 
 
-            sv->Rbb_segment[t/cfg->periode_endtoend][0] = distance(sv->R[(3*cfg->N/10)], sv->R[(4*cfg->N)/10]);
-            sv->Rbb_segment[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend;
-            fprintf(f->fichier_endtoend_segment, "%f %d \n", distance(sv->R[(3*cfg->N)/10], sv->R[(4*cfg->N)/10]), t/cfg->periode_endtoend);
+        //     sv->Rbb_segment[t/cfg->periode_endtoend][0] = distance(sv->R[(3*cfg->N/10)], sv->R[(4*cfg->N)/10]);
+        //     sv->Rbb_segment[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend;
+        //     fprintf(f->fichier_endtoend_segment, "%f %d \n", distance(sv->R[(3*cfg->N)/10], sv->R[(4*cfg->N)/10]), t/cfg->periode_endtoend);
 
-            sv->Rbb_avant[t/cfg->periode_endtoend][0] = distance(sv->R[(2*cfg->N)/10], sv->R[(3*cfg->N)/10]);
-            sv->Rbb_avant[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend;
-            fprintf(f->fichier_endtoend_avant, "%f %d \n", distance(sv->R[(2*cfg->N)/10], sv->R[(3*cfg->N)/10]), t/cfg->periode_endtoend);
+        //     sv->Rbb_avant[t/cfg->periode_endtoend][0] = distance(sv->R[(2*cfg->N)/10], sv->R[(3*cfg->N)/10]);
+        //     sv->Rbb_avant[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend;
+        //     fprintf(f->fichier_endtoend_avant, "%f %d \n", distance(sv->R[(2*cfg->N)/10], sv->R[(3*cfg->N)/10]), t/cfg->periode_endtoend);
 
-            sv->Rbb_apres[t/cfg->periode_endtoend][0] = distance(sv->R[(4*cfg->N)/10], sv->R[(5*cfg->N)/10]);
-            sv->Rbb_apres[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend;
-            fprintf(f->fichier_endtoend_apres, "%f %d \n", distance(sv->R[(4*cfg->N)/10], sv->R[(5*cfg->N)/10]), t/cfg->periode_endtoend);
-        }
+        //     sv->Rbb_apres[t/cfg->periode_endtoend][0] = distance(sv->R[(4*cfg->N)/10], sv->R[(5*cfg->N)/10]);
+        //     sv->Rbb_apres[t/cfg->periode_endtoend][1] = t/cfg->periode_endtoend;
+        //     fprintf(f->fichier_endtoend_apres, "%f %d \n", distance(sv->R[(4*cfg->N)/10], sv->R[(5*cfg->N)/10]), t/cfg->periode_endtoend);
+        // }
 
         if(t%cfg->periode_enregistrement == 0){
             if(sv->nb_rnap > 0){

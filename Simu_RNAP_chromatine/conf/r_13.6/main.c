@@ -77,18 +77,18 @@ int main(int argc, char*argv[])
 
 
     // creation_polymere_droit(cfg.N, cfg.a, cfg.ecart_train, sv.R);
-    // creation_polymere_aleatoire(cfg.N, cfg.a, sv.R);
+    //creation_polymere_aleatoire(cfg.N, cfg.a, sv.R);
     // creation_fractal_globule(N, a, ecart, R);
 
     if (cfg.resume_from_checkpoint == 0)
     {
-        // char file_path[512];
+        char file_path[512];
     
         #ifdef CLUSTER
             snprintf(
                 file_path,
                 sizeof(file_path),
-                "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_/brownian_LJ.lammpstrj",
+                "/home/elefloch/Simulation/Start_simu/N_1000/Simulations/nb-rnap_0/simulation_seed_%lu/brownian_LJ.lammpstrj",
                 cfg.seed
             );
         #else 

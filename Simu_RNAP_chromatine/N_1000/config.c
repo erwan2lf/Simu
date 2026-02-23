@@ -100,7 +100,7 @@ Config parse_config(int argc, char *argv[])
     cfg.plan = 0; // plan
     cfg.bending = 0; // bending
     cfg.critere = 1; // critere
-    cfg.temperature = 0; // temperature
+    cfg.temperature = 1; // temperature
     cfg.equilibriate = 1; // Mise a l'équilibre du système avant calcul
     cfg.quench = 0;
         
@@ -112,7 +112,7 @@ Config parse_config(int argc, char *argv[])
 
     // print_header("Durées et périodicitéss");
 
-    int N_rec = 1000; 
+    int N_rec = 10000; 
     int k;
 
     if(cfg.nb_rnap_initial == 0)
@@ -122,7 +122,7 @@ Config parse_config(int argc, char *argv[])
         cfg.T = cfg.T + cfg.T/10;
         // cfg.T = 13200000;
         printf("T0 = %d\n", cfg.T);
-        cfg.T_eq = 0;
+        cfg.T_eq = cfg.T/10;
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.periode_enregistrement = k;  // periode_enregistrement
@@ -144,6 +144,7 @@ Config parse_config(int argc, char *argv[])
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.T =  k * N_rec;
         cfg.T = 1000000;
+        cfg.T_eq = cfg.T/10;
         printf("Tf = %d\n", cfg.T);
 
         cfg.periode_enregistrement = k;  // periode_enregistrement

@@ -197,29 +197,23 @@ Mesures calcul_mesures (double ** R, int N){
 }*/
 
 void enregistrement(FILE* fichier, double** R_matrix, int N, int t) {
-    double TT = 1e+3;
-    double cdm[3] = {0, 0, 0};
-    fprintf(fichier, "ITEM: TIMESTEP\n");
-    fprintf(fichier, "%d\n", t);
-    fprintf(fichier, "ITEM: NUMBER OF ATOMS\n");
-    fprintf(fichier, "%d\n", N);
-    fprintf(fichier, "ITEM: BOX BOUNDS ss ss ss\n");
-    fprintf(fichier, "%lf %lf\n", -TT, TT);
-    fprintf(fichier, "%lf %lf\n", -TT, TT);
-    fprintf(fichier, "%lf %lf\n", -TT, TT);
-    fprintf(fichier, "ITEM: ATOMS id type xs ys zs\n");
+    const double TT = 1e3;
 
-    for(int i = 0; i < N; i++){
-        cdm[0] += R_matrix[i][0];
-        cdm[1] += R_matrix[i][1];
-        cdm[2] += R_matrix[i][2];
-    }
-    cdm[0] /= N;
-    cdm[1] /= N;
-    cdm[2] /= N;
+    fprintf(fichier, "ITEM: TIMESTEP\n%d\n", t);
+    fprintf(fichier, "ITEM: NUMBER OF ATOMS\n%d\n", N);
+    fprintf(fichier, "ITEM: BOX BOUNDS ss ss ss\n");
+    fprintf(fichier, "%.1f %.1f\n%.1f %.1f\n%.1f %.1f\n",
+            -TT, TT, -TT, TT, -TT, TT);
+
+    fprintf(fichier, "ITEM: ATOMS id type xs ys zs mark\n");
 
     for (int particle = 0; particle < N; particle++) {
-        fprintf(fichier, "%d 1 %lf %lf %lf -2\n", particle, (R_matrix[particle][0]) / 1000, (R_matrix[particle][1]) / 1000, (R_matrix[particle][2]) / 1000);
+        fprintf(fichier,
+                "%d 1 %.6f %.6f %.6f -2\n",
+                particle,
+                R_matrix[particle][0] / 1000.0,
+                R_matrix[particle][1] / 1000.0,
+                R_matrix[particle][2] / 1000.0);
     }
 }
 

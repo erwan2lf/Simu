@@ -50,7 +50,7 @@ mkdir -p "$parent_folder"
 # Paramètres de simulation
 # ======================
 nb_rnap_values=(0)
-vitesse_rnap_values=()
+vitesse_rnap_values=(0.1)
 Ktranspt_values=(4)
 seeds=({1..50})
 

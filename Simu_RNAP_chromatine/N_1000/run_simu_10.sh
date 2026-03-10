@@ -57,7 +57,7 @@ echo "⚙️  Jobs en parallèle (bg)  : $MAX_PARALLEL"
 parent_folder="$SLURM_SUBMIT_DIR/Simulations"
 mkdir -p "$parent_folder"
 
-nb_rnap_values=(10)
+nb_rnap_values=(50)
 vitesse_rnap_values=(0.1)
 Ktranspt_values=(2)
 seeds=({1..50})

@@ -39,7 +39,7 @@ int main(int argc, char*argv[])
     cfg = parse_config(argc, argv);
 
     int t_start = 0;
-    int checkpoint_found = load_checkpoint_metadata(&cfg, &t_start);
+    // int checkpoint_found = load_checkpoint_metadata(&cfg, &t_start);
     int checkpoint_found = 0;
 
     cfg.resume_from_checkpoint = checkpoint_found;
@@ -48,17 +48,20 @@ int main(int argc, char*argv[])
     init_sim_vars(&sv, &cfg);
 
     
-    // 3) Charger uniquement les données dans les buffers déjà allocés
-    if (checkpoint_found)
-    {
-        load_checkpoint_data(&sv, &cfg, &t_start);
-        printf("✅ Reprise depuis t = %d\n", t_start);
-    }
-    else
-    {
-        init_genrand(cfg.seed);
-        printf("🚀 Démarrage neuf\n");
-    }
+    // // 3) Charger uniquement les données dans les buffers déjà allocés
+    // if (checkpoint_found)
+    // {
+    //     load_checkpoint_data(&sv, &cfg, &t_start);
+    //     printf("✅ Reprise depuis t = %d\n", t_start);
+    // }
+    // else
+    // {
+    //     init_genrand(cfg.seed);
+    //     printf("🚀 Démarrage neuf\n");
+    // }
+
+    init_genrand(cfg.seed);
+    printf("🚀 Démarrage neuf\n");
 
     // for(int i = 0; i < cfg.N; i++){
     //     printf("R[%d][0] = %lf R[%d][1] = %lf R[%d][2] = %lf \n", i, sv.R[i][0], i, sv.R[i][1], i, sv.R[i][2]);

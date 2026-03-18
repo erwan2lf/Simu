@@ -40,7 +40,7 @@ int main(int argc, char*argv[])
 
     int t_start = 0;
     int checkpoint_found = load_checkpoint_metadata(&cfg, &t_start);
-
+    int checkpoint_found = 0;
 
     cfg.resume_from_checkpoint = checkpoint_found;
 

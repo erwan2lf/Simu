@@ -234,11 +234,6 @@ Config parse_config(int argc, char *argv[])
     snprintf(cfg.nom_fichier_rnap_equilibre_lamps, sizeof(cfg.nom_fichier_rnap_equilibre_lamps), "brownian_LJ_rnap_equilibre.lammpstrj");
 
 
-        ///// Restart de simu 
-
-    cfg.resume_from_checkpoint = 0; 
-
-
     return cfg;
 
 }

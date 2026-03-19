@@ -63,11 +63,6 @@ Ktranspt_values=(2)
 seeds=({1..50})
 
 # =============================
-# Gestion des signaux SLURM
-# =============================
-trap 'echo "⚠️  SIGTERM reçu à $(date) — sauvegarde et marquage pour relance"; touch "$SLURM_SUBMIT_DIR/.RELAUNCH"; exit 0' SIGTERM
-
-# =============================
 # Fonction : une simulation
 # =============================
 run_one_simulation() {
@@ -77,40 +72,29 @@ run_one_simulation() {
   local Ktranspt="$4"
   local seed="$5"
 
-  cd "$sim_dir"
+  cd "$sim_dir" || exit 1
 
   echo "▶ Simulation : nb_rnap=$nb_rnap | vitesse=$vitesse | K=$Ktranspt | seed=$seed"
 
   # Si simulation déjà finie
   if [[ -f ".FINISHED" ]]; then
       echo "⏭ Simulation déjà terminée → skip"
-      cd "$SLURM_SUBMIT_DIR"
+      cd "$SLURM_SUBMIT_DIR" || exit 1
       return
   fi
 
-  while true; do
-      echo ">> $(date +"[%H:%M:%S]") Lancement main" | tee -a output.txt
+  echo ">> $(date +"[%H:%M:%S]") Lancement main" | tee -a output.txt
 
-      "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" \
-          >> output.txt 2>> error.txt
+  "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" \
+      >> output.txt 2>> error.txt
 
-      # ✅ Si la simulation a fini normalement → FIN
-      if [[ -f ".FINISHED" ]]; then
-         echo "✅ Simulation terminée (FINISHED détecté)"
-         break
-      fi
+  if [[ -f ".FINISHED" ]]; then
+      echo "✅ Simulation terminée (FINISHED détecté)" | tee -a output.txt
+  else
+      echo "⚠️ Simulation arrêtée sans .FINISHED" | tee -a output.txt
+  fi
 
-      # Si signal SLURM reçu → on stoppe la boucle (reprise au prochain job)
-      if [[ -f "$SLURM_SUBMIT_DIR/.RELAUNCH" ]]; then
-         echo "🛑 Arrêt demandé par SLURM, sauvegarde checkpoint OK"
-         break
-      fi
-
-      # Sinon → Checkpoint détecté, reprise automatique
-      echo "🔄 Checkpoint détecté → Reprise automatique…" | tee -a output.txt
-  done
-
-  cd "$SLURM_SUBMIT_DIR"
+  cd "$SLURM_SUBMIT_DIR" || exit 1
 }
 
 # =============================
@@ -146,20 +130,5 @@ for nb_rnap in "${nb_rnap_values[@]}"; do
 done
 
 wait
-
-# =============================
-# Relance automatique
-# =============================
-echo "🧩 Vérification des simulations incomplètes..."
-unfinished=$(find "$parent_folder" -type d -name "simulation_seed_*" ! -exec test -f "{}/.FINISHED" ';' -print | wc -l)
-
-if (( unfinished > 0 )); then
-    echo "⚠️  $unfinished simulations incomplètes → relance automatique"
-    rm -f "$SLURM_SUBMIT_DIR/.RELAUNCH"
-    sbatch "$0"
-else
-    echo "🎉 Toutes les simulations sont terminées."
-    rm -f "$SLURM_SUBMIT_DIR/.RELAUNCH"
-fi
 
 echo "======== END OF JOB $(date) ========"

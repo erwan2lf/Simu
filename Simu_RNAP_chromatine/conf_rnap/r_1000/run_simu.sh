@@ -2,7 +2,7 @@
 #SBATCH --job-name=nc_50r
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=50
+#SBATCH --cpus-per-task=1
 #SBATCH --mem=5G
 #SBATCH -t 48:00:00
 #SBATCH -p amd32
@@ -46,7 +46,7 @@ echo "✅ Compilation OK"
 chmod +x main
 
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
-MAX_PARALLEL="$OMP_NUM_THREADS"
+MAX_PARALLEL=50
 
 echo "🖥️  Threads OpenMP         : $OMP_NUM_THREADS"
 echo "⚙️  Jobs en parallèle (bg)  : $MAX_PARALLEL"

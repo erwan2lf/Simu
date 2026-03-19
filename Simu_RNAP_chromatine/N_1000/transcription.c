@@ -1221,18 +1221,18 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
 
 
 
-    for(int i = 0; i < cfg->nb_rnap_initial; i++)
-    {
-        for(int j = 0; j < cfg->rnap_subunits; j++)
-        {
-            for(int k = 0; k < 3; k++)
-            {
-                printf("R_rnap[%d][%d][%d] = %lf ", i, j, k, sv->R_rnap[i][j][k]);
-            }
-            printf("\n");
-        }
-        printf("\n");
-    }
+    // for(int i = 0; i < cfg->nb_rnap_initial; i++)
+    // {
+    //     for(int j = 0; j < cfg->rnap_subunits; j++)
+    //     {
+    //         for(int k = 0; k < 3; k++)
+    //         {
+    //             printf("R_rnap[%d][%d][%d] = %lf ", i, j, k, sv->R_rnap[i][j][k]);
+    //         }
+    //         printf("\n");
+    //     }
+    //     printf("\n");
+    // }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////   💾 État initial et enregistrements initiaux   ////////////////////////

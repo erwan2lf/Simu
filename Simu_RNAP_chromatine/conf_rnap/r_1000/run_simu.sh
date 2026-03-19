@@ -76,23 +76,12 @@ run_one_simulation() {
 
   echo "▶ Simulation : nb_rnap=$nb_rnap | vitesse=$vitesse | K=$Ktranspt | seed=$seed"
 
-  # Si simulation déjà finie
-  if [[ -f ".FINISHED" ]]; then
-      echo "⏭ Simulation déjà terminée → skip"
-      cd "$SLURM_SUBMIT_DIR" || exit 1
-      return
-  fi
-
   echo ">> $(date +"[%H:%M:%S]") Lancement main" | tee -a output.txt
 
   "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" \
       >> output.txt 2>> error.txt
 
-  if [[ -f ".FINISHED" ]]; then
-      echo "✅ Simulation terminée (FINISHED détecté)" | tee -a output.txt
-  else
-      echo "⚠️ Simulation arrêtée sans .FINISHED" | tee -a output.txt
-  fi
+  echo "🏁 Fin du run (quel que soit le statut)" | tee -a output.txt
 
   cd "$SLURM_SUBMIT_DIR" || exit 1
 }

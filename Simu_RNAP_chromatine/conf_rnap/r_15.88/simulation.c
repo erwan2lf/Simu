@@ -570,25 +570,25 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
             (now.tv_sec - chrono_start.tv_sec) +
             (now.tv_nsec - chrono_start.tv_nsec) * 1e-9;
 
-        if (total_elapsed >= checkpoint_limit_s) {
-            printf("\n💾 Limite de %.1f h atteinte (%.2f h écoulées)\n",
-                   checkpoint_limit_h, total_elapsed / 3600.0);
-            printf("   → Sauvegarde automatique du checkpoint et arrêt propre.\n");
+        // if (total_elapsed >= checkpoint_limit_s) {
+        //     printf("\n💾 Limite de %.1f h atteinte (%.2f h écoulées)\n",
+        //            checkpoint_limit_h, total_elapsed / 3600.0);
+        //     printf("   → Sauvegarde automatique du checkpoint et arrêt propre.\n");
 
-            // for(int i = 0; i < cfg->N; i++){
-            //     printf("R[%d][0] = %lf R[%d][1] = %lf R[%d][2] = %lf \n", i, sv->R[i][0], i, sv->R[i][1], i, sv->R[i][2]);
-            // }
+        //     // for(int i = 0; i < cfg->N; i++){
+        //     //     printf("R[%d][0] = %lf R[%d][1] = %lf R[%d][2] = %lf \n", i, sv->R[i][0], i, sv->R[i][1], i, sv->R[i][2]);
+        //     // }
 
-            char checkpoint_name[256];
-            snprintf(checkpoint_name, sizeof(checkpoint_name),
-                     "checkpoint_t%d.dat", t);
+        //     char checkpoint_name[256];
+        //     snprintf(checkpoint_name, sizeof(checkpoint_name),
+        //              "checkpoint_t%d.dat", t);
 
-            save_checkpoint(sv, cfg, t);
+        //     save_checkpoint(sv, cfg, t);
 
-            printf("✅ Checkpoint enregistré sous %s\n", checkpoint_name);
-            fflush(stdout);
-            exit(0);
-        }
+        //     printf("✅ Checkpoint enregistré sous %s\n", checkpoint_name);
+        //     fflush(stdout);
+        //     exit(0);
+        // }
         
 
         // -----------------------------------------------------------------

@@ -1,0 +1,108 @@
+======== SLURM SIMULATION LAUNCH ========
+Job ID: 173440
+Date  : Thu Mar 19 21:47:05 CET 2026
+Dir   : /home/elefloch/Simu/Simu_RNAP_chromatine/conf_rnap/r_1000
+📦 Compilation du code...
+✅ Compilation OK
+🖥️  Threads OpenMP         : 1
+⚙️  Jobs en parallèle (bg)  : 50
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=1
+>> [21:47:08] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=2
+>> [21:47:09] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=3
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=4
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=5
+>> [21:47:09] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=6
+>> [21:47:10] Lancement main
+>> [21:47:10] Lancement main
+>> [21:47:10] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=7
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=8
+>> [21:47:10] Lancement main
+>> [21:47:10] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=9
+>> [21:47:10] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=10
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=11
+>> [21:47:11] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=12
+>> [21:47:11] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=13
+>> [21:47:11] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=14
+>> [21:47:11] Lancement main
+>> [21:47:11] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=15
+>> [21:47:11] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=16
+>> [21:47:11] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=17
+>> [21:47:12] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=18
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=19
+>> [21:47:12] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=20
+>> [21:47:12] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=21
+>> [21:47:12] Lancement main
+>> [21:47:12] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=22
+>> [21:47:13] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=23
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=24
+>> [21:47:13] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=25
+>> [21:47:13] Lancement main
+>> [21:47:15] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=26
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=27
+>> [21:47:15] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=28
+>> [21:47:15] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=29
+>> [21:47:16] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=30
+>> [21:47:16] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=31
+>> [21:47:16] Lancement main
+>> [21:47:16] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=32
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=33
+>> [21:47:17] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=34
+>> [21:47:17] Lancement main
+>> [21:47:17] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=35
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=36
+>> [21:47:18] Lancement main
+>> [21:47:18] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=37
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=38
+>> [21:47:18] Lancement main
+>> [21:47:19] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=39
+>> [21:47:20] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=40
+>> [21:47:20] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=41
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=42
+>> [21:47:21] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=43
+>> [21:47:21] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=44
+>> [21:47:21] Lancement main
+>> [21:47:21] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=45
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=46
+>> [21:47:22] Lancement main
+>> [21:47:22] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=47
+>> [21:47:23] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=48
+>> [21:47:23] Lancement main
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=49
+▶ Simulation : nb_rnap=10 | vitesse=0.1 | K=2 | seed=50
+>> [21:47:23] Lancement main
+>> [21:47:24] Lancement main

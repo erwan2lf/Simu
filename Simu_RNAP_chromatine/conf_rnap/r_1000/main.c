@@ -42,7 +42,7 @@ int main(int argc, char*argv[])
     // int checkpoint_found = load_checkpoint_metadata(&cfg, &t_start);
 
 
-    cfg.resume_from_checkpoint = checkpoint_found;
+    // cfg.resume_from_checkpoint = checkpoint_found;
 
     // 2) Allouer les buffers AVEC les bonnes dimensions cfg
     init_sim_vars(&sv, &cfg);

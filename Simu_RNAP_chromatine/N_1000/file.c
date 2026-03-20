@@ -58,7 +58,8 @@ void open_simulation_files(const Config *cfg, Files *f)
     //////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Si reprise depuis un checkpoint → on AJOUTE dans les fichiers existants
-    const char *mode = (cfg->resume_from_checkpoint ? "a" : "w");
+    // const char *mode = (cfg->resume_from_checkpoint ? "a" : "w");
+    const char *mode = "w";
 
     char path[512];
     

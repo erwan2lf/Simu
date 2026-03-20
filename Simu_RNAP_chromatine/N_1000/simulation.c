@@ -570,21 +570,21 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
             (now.tv_sec - chrono_start.tv_sec) +
             (now.tv_nsec - chrono_start.tv_nsec) * 1e-9;
 
-        if (total_elapsed >= checkpoint_limit_s) {
-            printf("\n💾 Limite de %.1f h atteinte (%.2f h écoulées)\n",
-                   checkpoint_limit_h, total_elapsed / 3600.0);
-            printf("   → Sauvegarde automatique du checkpoint et arrêt propre.\n");
+        // if (total_elapsed >= checkpoint_limit_s) {
+        //     printf("\n💾 Limite de %.1f h atteinte (%.2f h écoulées)\n",
+        //            checkpoint_limit_h, total_elapsed / 3600.0);
+        //     printf("   → Sauvegarde automatique du checkpoint et arrêt propre.\n");
 
-            char checkpoint_name[256];
-            snprintf(checkpoint_name, sizeof(checkpoint_name),
-                     "checkpoint_t%d.dat", t);
+        //     char checkpoint_name[256];
+        //     snprintf(checkpoint_name, sizeof(checkpoint_name),
+        //              "checkpoint_t%d.dat", t);
 
-            save_checkpoint(sv, cfg, t);
+        //     save_checkpoint(sv, cfg, t);
 
-            printf("✅ Checkpoint enregistré sous %s\n", checkpoint_name);
-            fflush(stdout);
-            exit(0);
-        }
+        //     printf("✅ Checkpoint enregistré sous %s\n", checkpoint_name);
+        //     fflush(stdout);
+        //     exit(0);
+        // }
         
 
         // -----------------------------------------------------------------
@@ -874,126 +874,126 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
 
 
 
-void save_checkpoint(SimVars *sv, const Config *cfg, int t)
-{
-    unsigned long state[624];
-    int index;
-    get_mt_state(state, &index);
+// void save_checkpoint(SimVars *sv, const Config *cfg, int t)
+// {
+//     unsigned long state[624];
+//     int index;
+//     get_mt_state(state, &index);
 
-    char current[256], backup[256];
-    snprintf(current, sizeof(current), "./Resultats/checkpoint_last.dat");
-    snprintf(backup, sizeof(backup), "./Resultats/checkpoint_prev.dat");
+//     char current[256], backup[256];
+//     snprintf(current, sizeof(current), "./Resultats/checkpoint_last.dat");
+//     snprintf(backup, sizeof(backup), "./Resultats/checkpoint_prev.dat");
 
-    rename(current, backup);
+//     rename(current, backup);
 
-    FILE *f = fopen(current, "wb");
-    if (!f) {
-        perror("❌ fopen checkpoint");
-        return;
-    }
+//     FILE *f = fopen(current, "wb");
+//     if (!f) {
+//         perror("❌ fopen checkpoint");
+//         return;
+//     }
 
-    // --- META DATA ---
-    fwrite(&t,          sizeof(int), 1, f);
-    fwrite(&sv->nb_rnap, sizeof(int), 1, f);
+//     // --- META DATA ---
+//     fwrite(&t,          sizeof(int), 1, f);
+//     fwrite(&sv->nb_rnap, sizeof(int), 1, f);
 
-    // --- POLYMERE ---
-    for (int i = 0; i < cfg->N; i++)
-        fwrite(sv->R[i], sizeof(double), 3, f);
+//     // --- POLYMERE ---
+//     for (int i = 0; i < cfg->N; i++)
+//         fwrite(sv->R[i], sizeof(double), 3, f);
 
-    // --- RNAP ---
+//     // --- RNAP ---
 
-    for (int i = 0; i < MAX_RNAP; i++)
-        for (int j = 0; j < cfg->rnap_subunits; j++)
-            for (int k = 0; k < 3; k++)
-                fwrite(&sv->R_rnap[i][j][k], sizeof(double), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         for (int j = 0; j < cfg->rnap_subunits; j++)
+//             for (int k = 0; k < 3; k++)
+//                 fwrite(&sv->R_rnap[i][j][k], sizeof(double), 1, f);
 
 
-    // --- ARRAYS RNAP 1D ---
+//     // --- ARRAYS RNAP 1D ---
    
-    for (int i = 0; i < MAX_RNAP; i++)
-        fwrite(&sv->l_rnap[i], sizeof(int), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fwrite(&sv->l_rnap[i], sizeof(int), 1, f);
 
-    for (int i = 0; i < MAX_RNAP; i++)
-        fwrite(&sv->positions_bille_rnap[i], sizeof(int), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fwrite(&sv->positions_bille_rnap[i], sizeof(int), 1, f);
     
-    for (int i = 0; i < MAX_RNAP; i++)
-        fwrite(&sv->avancement_transcription[i], sizeof(double), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fwrite(&sv->avancement_transcription[i], sizeof(double), 1, f);
 
-    for (int i = 0; i < MAX_RNAP; i++)
-        fwrite(&sv->compteur_mono_rnap[i], sizeof(int), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fwrite(&sv->compteur_mono_rnap[i], sizeof(int), 1, f);
 
-    // --- RNG ---
-    fwrite(state, sizeof(state), 1, f);
-    fwrite(&index, sizeof(int), 1, f);
+//     // --- RNG ---
+//     fwrite(state, sizeof(state), 1, f);
+//     fwrite(&index, sizeof(int), 1, f);
 
-    fclose(f);
+//     fclose(f);
 
-    printf("💾 Checkpoint sauvegardé à t = %d\n", t);
-}
-
-
-#define CHECKPOINT_FILE "./Resultats/checkpoint_last.dat"
-
-int load_checkpoint_metadata(Config *cfg, int *t_start)
-{
-    FILE *f = fopen("./Resultats/checkpoint_last.dat", "rb");
-    if (!f) return 0;
-
-    // L'ordre doit matcher EXACTEMENT save_checkpoint()
-
-    fread(t_start, sizeof(int), 1, f);     // ✅ lis t
-    // fread(&cfg->nb_rnap_initial, sizeof(int), 1, f);  // ✅ lis nb_rnap (ne l'ignore pas)
-
-    fclose(f);
-    return 1;
-}
+//     printf("💾 Checkpoint sauvegardé à t = %d\n", t);
+// }
 
 
-int load_checkpoint_data(SimVars *sv, Config *cfg, int *t_start)
-{
-    FILE *f = fopen(CHECKPOINT_FILE, "rb");
-    if (!f)
-        return 0;
+// #define CHECKPOINT_FILE "./Resultats/checkpoint_last.dat"
 
-    // Lire t_start et cfg sauvegardée
-    fread(t_start, sizeof(int), 1, f);
-    fread(&sv->nb_rnap, sizeof(int), 1, f);
+// int load_checkpoint_metadata(Config *cfg, int *t_start)
+// {
+//     FILE *f = fopen("./Resultats/checkpoint_last.dat", "rb");
+//     if (!f) return 0;
 
-    // POLYMERE
+//     // L'ordre doit matcher EXACTEMENT save_checkpoint()
 
-    for (int i = 0; i < cfg->N; i++)
-        fread(sv->R[i], sizeof(double), 3, f);
+//     fread(t_start, sizeof(int), 1, f);     // ✅ lis t
+//     // fread(&cfg->nb_rnap_initial, sizeof(int), 1, f);  // ✅ lis nb_rnap (ne l'ignore pas)
+
+//     fclose(f);
+//     return 1;
+// }
+
+
+// int load_checkpoint_data(SimVars *sv, Config *cfg, int *t_start)
+// {
+//     FILE *f = fopen(CHECKPOINT_FILE, "rb");
+//     if (!f)
+//         return 0;
+
+//     // Lire t_start et cfg sauvegardée
+//     fread(t_start, sizeof(int), 1, f);
+//     fread(&sv->nb_rnap, sizeof(int), 1, f);
+
+//     // POLYMERE
+
+//     for (int i = 0; i < cfg->N; i++)
+//         fread(sv->R[i], sizeof(double), 3, f);
     
 
-    // RNAP matrices
-    for (int i = 0; i < MAX_RNAP; i++)
-        for (int j = 0; j < cfg->rnap_subunits; j++)
-            for (int k = 0; k < 3; k++)
-                fread(&sv->R_rnap[i][j][k], sizeof(double), 1, f);
+//     // RNAP matrices
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         for (int j = 0; j < cfg->rnap_subunits; j++)
+//             for (int k = 0; k < 3; k++)
+//                 fread(&sv->R_rnap[i][j][k], sizeof(double), 1, f);
 
-    // RNAP tableaux 1D
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->l_rnap[i], sizeof(int), 1, f);
+//     // RNAP tableaux 1D
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fread(&sv->l_rnap[i], sizeof(int), 1, f);
 
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->positions_bille_rnap[i], sizeof(int), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fread(&sv->positions_bille_rnap[i], sizeof(int), 1, f);
     
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->avancement_transcription[i], sizeof(double), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fread(&sv->avancement_transcription[i], sizeof(double), 1, f);
 
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->compteur_mono_rnap[i], sizeof(int), 1, f);
+//     for (int i = 0; i < MAX_RNAP; i++)
+//         fread(&sv->compteur_mono_rnap[i], sizeof(int), 1, f);
 
-    // RNG
-    unsigned long state[624];
-    int index;
-    fread(state, sizeof(state), 1, f);
-    fread(&index, sizeof(int), 1, f);
-    set_mt_state(state, index);
+//     // RNG
+//     unsigned long state[624];
+//     int index;
+//     fread(state, sizeof(state), 1, f);
+//     fread(&index, sizeof(int), 1, f);
+//     set_mt_state(state, index);
 
-    fclose(f);
-    return 1;
-}
+//     fclose(f);
+//     return 1;
+// }
 
 void confinement_sphere(const Config *cfg, SimVars *sv, int t)
 {

@@ -39,7 +39,6 @@ Simulations/
 *~
 # === Autoriser scripts mais ignorer leurs sorties ===
 !*.py
-!*.sh
 Simu_RNAP_chromatine/N_1000_200/
 Simu_RNAP_chromatine/N_1000_200_800/
 Simu_RNAP_chromatine/N_1000_400/

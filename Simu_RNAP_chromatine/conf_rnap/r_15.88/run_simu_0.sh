@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=n0_v0201005
+#SBATCH --job-name=c15_0r
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=50
@@ -90,7 +90,7 @@ mkdir -p "$parent_folder"
 # ======================
 nb_rnap_values=(0)
 vitesse_rnap_values=(0.1)
-Ktranspt_values=(4)
+Ktranspt_values=(2)
 seeds=({1..50})
 
 running=0

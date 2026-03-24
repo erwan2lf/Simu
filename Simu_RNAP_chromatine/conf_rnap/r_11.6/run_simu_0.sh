@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=n0_v0201005
+#SBATCH --job-name=c11_0r
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=50

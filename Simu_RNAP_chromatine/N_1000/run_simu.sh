@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=nf_50r
+#SBATCH --job-name=nf_20r
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=50
@@ -57,7 +57,7 @@ echo "⚙️  Jobs en parallèle (bg)  : $MAX_PARALLEL"
 parent_folder="$SLURM_SUBMIT_DIR/Simulations"
 mkdir -p "$parent_folder"
 
-nb_rnap_values=(50)
+nb_rnap_values=(20)
 vitesse_rnap_values=(0.1)
 Ktranspt_values=(2)
 seeds=({1..50})

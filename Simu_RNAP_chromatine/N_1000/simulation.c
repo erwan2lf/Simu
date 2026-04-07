@@ -496,6 +496,7 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
         }
 
         if(t%cfg->periode_enregistrement == 0){
+
             if(sv->nb_rnap > 0){
                 enregistrement_RNAP(
                     f->fichier,                 
@@ -716,7 +717,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
                     sv->R,
                     sv->R_rnap[rnap],
                     mono_proche,
-                    3.52e-2,   // nouveau paramètre
+                    3.52e-4,   // nouveau paramètre
                     cfg->Delta
                 );
 

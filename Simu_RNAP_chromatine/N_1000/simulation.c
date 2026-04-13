@@ -15,6 +15,19 @@
 #define MAX_RNAP_SUBUNITS 8 
 #define DIM 3
 
+#define DEBUG_TIMING 0
+
+#if DEBUG_TIMING
+    #define TIMER_START(w0,c0) clock_gettime(CLOCK_MONOTONIC, &w0); c0 = clock();
+    #define TIMER_END(w0,w1,c0,c1,tm) \
+        clock_gettime(CLOCK_MONOTONIC, &w1); \
+        c1 = clock(); \
+        timer_add(&tm, w0, w1, c0, c1);
+#else
+    #define TIMER_START(w0,c0)
+    #define TIMER_END(w0,w1,c0,c1,tm)
+#endif
+
 typedef struct {
     const char *name;
     double wall_total;   // temps réel cumulé
@@ -561,6 +574,23 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
 
 
+#define DEBUG_TIMING   0
+#define DEBUG_PROGRESS 1
+
+#if DEBUG_TIMING
+    #define TIMER_START(w0,c0) \
+        clock_gettime(CLOCK_MONOTONIC, &(w0)); \
+        (c0) = clock()
+
+    #define TIMER_END(w0,w1,c0,c1,tmr) \
+        clock_gettime(CLOCK_MONOTONIC, &(w1)); \
+        (c1) = clock(); \
+        timer_add(&(tmr), (w0), (w1), (c0), (c1))
+#else
+    #define TIMER_START(w0,c0) do {} while(0)
+    #define TIMER_END(w0,w1,c0,c1,tmr) do {} while(0)
+#endif
+
 void calcul(SimVars *sv, const Config *cfg, const Files *f,
             NeighborList *neighbor_lists,
             NeighborList_rnap **neighbor_lists_rnap,
@@ -573,12 +603,16 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
     struct timespec loop_w0, loop_w1, sec_w0, sec_w1;
     clock_t loop_c0, loop_c1, sec_c0, sec_c1;
 
-    double interval = 60.0;              // affichage toutes les 60 s
+    double interval = 60.0;              // affichage debug toutes les 60 s
     double checkpoint_limit_h = 47.0;    // 47 h
     double checkpoint_limit_s = checkpoint_limit_h * 3600.0;
 
     double total_loop_wall = 0.0;
     double total_loop_cpu  = 0.0;
+
+    int print_stride = (cfg->T >= 10) ? (cfg->T / 10) : 1;
+    // Pour un très gros run, tu peux aussi forcer :
+    // int print_stride = 1000000;
 
     // ------------------------------------------------------------------
     // Timers par fonction / section
@@ -631,6 +665,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
     int time_depart = (t_start != 0) ? t_start : 0;
     printf("▶️  Simulation lancée à t=%d avec limite de %.1f h (%.0f s)\n",
            time_depart, checkpoint_limit_h, checkpoint_limit_s);
+    fflush(stdout);
 
     for (int t = time_depart; t < cfg->T; t++) {
 
@@ -643,15 +678,19 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         clock_gettime(CLOCK_MONOTONIC, &now);
         double elapsed = timespec_diff_s(last, now);
 
-        // Affichage périodique
+        // --------------------------------------------------------------
+        // Affichage périodique DEBUG
+        // --------------------------------------------------------------
+#if DEBUG_TIMING
         if (elapsed >= interval) {
-            double total_elapsed = timespec_diff_s(chrono_start, now);
-            printf("Itération %d (%.1f s depuis début)\n", t, total_elapsed);
+            double total_elapsed_dbg = timespec_diff_s(chrono_start, now);
+            printf("Itération %d (%.1f s depuis début)\n", t, total_elapsed_dbg);
             fflush(stdout);
             last = now;
 
-            print_timer_summary(timers, TM_COUNT, "Résumé partiel des temps par fonction");
+            print_timer_summary(timers, TM_COUNT, "Résumé partiel");
         }
+#endif
 
         // --------------------------------------------------------------
         // Vérification limite checkpoint
@@ -663,26 +702,23 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                    checkpoint_limit_h, total_elapsed / 3600.0);
             printf("   → Sauvegarde automatique du checkpoint et arrêt propre.\n");
 
-            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-            sec_c0 = clock();
+            TIMER_START(sec_w0, sec_c0);
             save_checkpoint(sv, cfg, t);
-            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-            sec_c1 = clock();
-            timer_add(&timers[TM_SAVE_CHECKPOINT], sec_w0, sec_w1, sec_c0, sec_c1);
+            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_SAVE_CHECKPOINT]);
 
             printf("✅ Checkpoint enregistré à t=%d\n", t);
             fflush(stdout);
 
-            // temps final avant sortie
             clock_gettime(CLOCK_MONOTONIC, &loop_w1);
             loop_c1 = clock();
             total_loop_wall += timespec_diff_s(loop_w0, loop_w1);
             total_loop_cpu  += (double)(loop_c1 - loop_c0) / CLOCKS_PER_SEC;
 
-            print_timer_summary(timers, TM_COUNT, "Résumé final des temps par fonction");
+#if DEBUG_TIMING
+            print_timer_summary(timers, TM_COUNT, "Résumé final");
             printf("Temps boucle cumulé : wall = %.6f s | cpu = %.6f s\n",
                    total_loop_wall, total_loop_cpu);
-
+#endif
             exit(0);
         }
 
@@ -699,12 +735,9 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
             }
 
             if (last_active == -1 && sv->nb_rnap < cfg->nb_rnap_initial) {
-                clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-                sec_c0 = clock();
+                TIMER_START(sec_w0, sec_c0);
                 ajouter_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, t);
-                clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-                sec_c1 = clock();
-                timer_add(&timers[TM_AJOUTER_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+                TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_AJOUTER_RNAP]);
 
             } else if (last_active >= 0) {
                 int pos = sv->positions_bille_rnap[last_active];
@@ -718,12 +751,9 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                         }
                     }
                     if (has_available) {
-                        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-                        sec_c0 = clock();
+                        TIMER_START(sec_w0, sec_c0);
                         ajouter_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, t);
-                        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-                        sec_c1 = clock();
-                        timer_add(&timers[TM_AJOUTER_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+                        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_AJOUTER_RNAP]);
                     }
                 }
             }
@@ -733,22 +763,16 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         // Neighbor lists
         // --------------------------------------------------------------
         if (t % 1000 == 0) {
-            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-            sec_c0 = clock();
+            TIMER_START(sec_w0, sec_c0);
             build_neighbor_list(sv->R, neighbor_lists, cfg->N, 2, 0);
-            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-            sec_c1 = clock();
-            timer_add(&timers[TM_BUILD_NL], sec_w0, sec_w1, sec_c0, sec_c1);
+            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_BUILD_NL]);
 
             if (cfg->nb_rnap_initial > 0) {
-                clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-                sec_c0 = clock();
+                TIMER_START(sec_w0, sec_c0);
                 build_neighbor_list_rnap_chrom(
                     cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
                     cfg->rayon_ecrantage_LJ_chrom, t);
-                clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-                sec_c1 = clock();
-                timer_add(&timers[TM_BUILD_NL_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+                TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_BUILD_NL_RNAP]);
             }
 
             for (int i = 0; i < cfg->N; i++) {
@@ -761,27 +785,21 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         // Confinement
         // --------------------------------------------------------------
         if (cfg->confinement == 1) {
-            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-            sec_c0 = clock();
+            TIMER_START(sec_w0, sec_c0);
             confinement_sphere(cfg, sv, t);
-            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-            sec_c1 = clock();
-            timer_add(&timers[TM_CONFINEMENT], sec_w0, sec_w1, sec_c0, sec_c1);
+            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_CONFINEMENT]);
         }
 
         // --------------------------------------------------------------
         // Dynamique polymère
         // --------------------------------------------------------------
-        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-        sec_c0 = clock();
+        TIMER_START(sec_w0, sec_c0);
         polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
             cfg->T, f->fichier_force, cfg->periode_force,
             f->fichier_force_thermique, cfg->temperature);
-        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-        sec_c1 = clock();
-        timer_add(&timers[TM_POLYMER_BM], sec_w0, sec_w1, sec_c0, sec_c1);
+        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_POLYMER_BM]);
 
         // --------------------------------------------------------------
         // RNAP
@@ -794,16 +812,13 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                 int prout = 0;
 
                 if (cfg->rnap_subunits == 8) {
-                    clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-                    sec_c0 = clock();
+                    TIMER_START(sec_w0, sec_c0);
                     polymere_brownian_motion_ring_force(
                         sv->R_rnap[rnap], 0.5 * cfg->alpha, cfg->K_rnap, cfg->Delta,
                         cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
                         f->fichier_force_rnap, f->fichier_force_thermique,
                         cfg->temperature);
-                    clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-                    sec_c1 = clock();
-                    timer_add(&timers[TM_RING_FORCE], sec_w0, sec_w1, sec_c0, sec_c1);
+                    TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_RING_FORCE]);
 
                     for (int pair = 0; pair < 4; pair++) {
                         int p1, p2;
@@ -812,14 +827,11 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                         if (pair == 2) { p1 = 1; p2 = 5; }
                         if (pair == 3) { p1 = 3; p2 = 7; }
 
-                        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-                        sec_c0 = clock();
+                        TIMER_START(sec_w0, sec_c0);
                         liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
                                     sv->R_rnap[rnap], p1, p2, f->fichier_force_rnap_2,
                                     t, cfg->periode_force);
-                        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-                        sec_c1 = clock();
-                        timer_add(&timers[TM_LIAISON_SUP], sec_w0, sec_w1, sec_c0, sec_c1);
+                        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LIAISON_SUP]);
                     }
                 }
 
@@ -827,27 +839,21 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                     sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;
                 }
 
-                clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-                sec_c0 = clock();
+                TIMER_START(sec_w0, sec_c0);
                 bond_rnap_bead_progressive_mvt(
                     cfg, sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
                     cfg->Delta, sv->positions_bille_rnap[rnap],
                     sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
                     f->fichier_force_lea, cfg->periode_force, t);
-                clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-                sec_c1 = clock();
-                timer_add(&timers[TM_BOND_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+                TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_BOND_RNAP]);
 
                 if (1 - sv->avancement_transcription[rnap] < 1e-7) {
                     sv->is_rnap[sv->positions_bille_rnap[rnap]] = 0;
 
-                    clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-                    sec_c0 = clock();
+                    TIMER_START(sec_w0, sec_c0);
                     retirer_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap,
                                  rnap, prout, t);
-                    clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-                    sec_c1 = clock();
-                    timer_add(&timers[TM_RETIRER_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+                    TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_RETIRER_RNAP]);
                 }
 
                 if (sv->positions_bille_rnap[rnap] >= 0 &&
@@ -860,55 +866,40 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         // --------------------------------------------------------------
         // Lennard-Jones
         // --------------------------------------------------------------
-        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-        sec_c0 = clock();
+        TIMER_START(sec_w0, sec_c0);
         lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
                              cfg->sigma6, cfg->sigma12, cfg->Delta,
                              cfg->attache, cfg->periode_force,
                              f->fichier_force_LJ, t);
-        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-        sec_c1 = clock();
-        timer_add(&timers[TM_LJ], sec_w0, sec_w1, sec_c0, sec_c1);
+        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ]);
 
-        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-        sec_c0 = clock();
+        TIMER_START(sec_w0, sec_c0);
         lennard_jones_forces_rnap(
             cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
             cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
             cfg->sigma6_rnap2, cfg->sigma12_rnap2,
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
-        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-        sec_c1 = clock();
-        timer_add(&timers[TM_LJ_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP]);
 
-        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-        sec_c0 = clock();
+        TIMER_START(sec_w0, sec_c0);
         lennard_jones_forces_rnap_rnap(
             cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
             cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
             sv->l_rnap);
-        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-        sec_c1 = clock();
-        timer_add(&timers[TM_LJ_RNAP_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP_RNAP]);
 
         // --------------------------------------------------------------
         // Divers
         // --------------------------------------------------------------
-        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-        sec_c0 = clock();
+        TIMER_START(sec_w0, sec_c0);
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new,
                                      sv->compteur_grand_deplacement);
-        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-        sec_c1 = clock();
-        timer_add(&timers[TM_COMPTEUR_GD], sec_w0, sec_w1, sec_c0, sec_c1);
+        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_COMPTEUR_GD]);
 
-        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-        sec_c0 = clock();
+        TIMER_START(sec_w0, sec_c0);
         enregistrement_data(sv, cfg, f, t);
-        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-        sec_c1 = clock();
-        timer_add(&timers[TM_ENREGISTREMENT], sec_w0, sec_w1, sec_c0, sec_c1);
+        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_ENREGISTREMENT]);
 
         // --------------------------------------------------------------
         // Fin timer boucle
@@ -922,13 +913,15 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         total_loop_wall += loop_wall;
         total_loop_cpu  += loop_cpu;
 
-        if (t % (cfg->T / 10) == 0) {
-            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
-            sec_c0 = clock();
+#if DEBUG_PROGRESS
+        if (t % print_stride == 0) {
             Mesures mesures = calcul_mesures(sv->R, cfg->N);
-            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
-            sec_c1 = clock();
-            timer_add(&timers[TM_CALCUL_MESURES], sec_w0, sec_w1, sec_c0, sec_c1);
+
+#if DEBUG_TIMING
+            TIMER_START(sec_w0, sec_c0);
+            // on ne veut pas timer deux fois calcul_mesures ; donc on peut l'omettre ici
+            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_CALCUL_MESURES]);
+#endif
 
             double duree_min = (int)(total_loop_wall / 60.0);
             double duree_sec = total_loop_wall - (duree_min * 60.0);
@@ -940,17 +933,22 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                    duree_min, duree_sec,
                    temps_restant,
                    mesures.std, mesures.moyenne);
+            fflush(stdout);
         }
+#endif
     }
 
     // ------------------------------------------------------------------
     // Résumé final
     // ------------------------------------------------------------------
-    print_timer_summary(timers, TM_COUNT, "Résumé final des temps par fonction");
+#if DEBUG_TIMING
+    print_timer_summary(timers, TM_COUNT, "Résumé final");
+#endif
 
     printf("Temps total passé dans la boucle :\n");
     printf("  - réel      : %.6f s (%.3f h)\n", total_loop_wall, total_loop_wall / 3600.0);
     printf("  - processeur: %.6f s (%.3f h)\n", total_loop_cpu,  total_loop_cpu  / 3600.0);
+    fflush(stdout);
 }
 
 void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap)

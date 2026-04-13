@@ -15,6 +15,47 @@
 #define MAX_RNAP_SUBUNITS 8 
 #define DIM 3
 
+typedef struct {
+    const char *name;
+    double wall_total;   // temps réel cumulé
+    double cpu_total;    // temps CPU cumulé
+    long calls;          // nombre d'appels
+} DebugTimer;
+
+static double timespec_diff_s(struct timespec a, struct timespec b)
+{
+    return (double)(b.tv_sec - a.tv_sec) + 1e-9 * (double)(b.tv_nsec - a.tv_nsec);
+}
+
+static void timer_add(DebugTimer *tmr, struct timespec w0, struct timespec w1,
+                      clock_t c0, clock_t c1)
+{
+    tmr->wall_total += timespec_diff_s(w0, w1);
+    tmr->cpu_total  += (double)(c1 - c0) / CLOCKS_PER_SEC;
+    tmr->calls++;
+}
+
+static void print_timer_summary(const DebugTimer *timers, int n, const char *title)
+{
+    printf("\n================ %s ================\n", title);
+    printf("%-28s %12s %12s %10s %12s %12s\n",
+           "Fonction", "Wall(s)", "CPU(s)", "Calls", "Wall/call", "CPU/call");
+
+    for (int i = 0; i < n; i++) {
+        double wall_avg = (timers[i].calls > 0) ? timers[i].wall_total / timers[i].calls : 0.0;
+        double cpu_avg  = (timers[i].calls > 0) ? timers[i].cpu_total  / timers[i].calls : 0.0;
+
+        printf("%-28s %12.6f %12.6f %10ld %12.6e %12.6e\n",
+               timers[i].name,
+               timers[i].wall_total,
+               timers[i].cpu_total,
+               timers[i].calls,
+               wall_avg,
+               cpu_avg);
+    }
+    printf("========================================================\n\n");
+}
+
 
 void init_sim_vars(SimVars *sv, Config *cfg) {
 
@@ -520,18 +561,70 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
 
 
 
-void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap, int t_start)
+void calcul(SimVars *sv, const Config *cfg, const Files *f,
+            NeighborList *neighbor_lists,
+            NeighborList_rnap **neighbor_lists_rnap,
+            int t_start)
 {
-    clock_t start_2, end_2;
-    clock_t start, end;
-    double duree_boucle, duree_tot = 0, temps_restant;
-
+    // ------------------------------------------------------------------
+    // Timers globaux
+    // ------------------------------------------------------------------
     struct timespec chrono_start, last, now;
-    double interval = 60.0; // affichage de progression toutes les 60 s
-    double checkpoint_limit_h = 47; // 47h30min
+    struct timespec loop_w0, loop_w1, sec_w0, sec_w1;
+    clock_t loop_c0, loop_c1, sec_c0, sec_c1;
+
+    double interval = 60.0;              // affichage toutes les 60 s
+    double checkpoint_limit_h = 47.0;    // 47 h
     double checkpoint_limit_s = checkpoint_limit_h * 3600.0;
 
-    // --- Initialisation du timer global ---
+    double total_loop_wall = 0.0;
+    double total_loop_cpu  = 0.0;
+
+    // ------------------------------------------------------------------
+    // Timers par fonction / section
+    // ------------------------------------------------------------------
+    enum {
+        TM_AJOUTER_RNAP = 0,
+        TM_BUILD_NL,
+        TM_BUILD_NL_RNAP,
+        TM_CONFINEMENT,
+        TM_POLYMER_BM,
+        TM_RING_FORCE,
+        TM_LIAISON_SUP,
+        TM_BOND_RNAP,
+        TM_RETIRER_RNAP,
+        TM_LJ,
+        TM_LJ_RNAP,
+        TM_LJ_RNAP_RNAP,
+        TM_COMPTEUR_GD,
+        TM_ENREGISTREMENT,
+        TM_CALCUL_MESURES,
+        TM_SAVE_CHECKPOINT,
+        TM_COUNT
+    };
+
+    DebugTimer timers[TM_COUNT] = {
+        [TM_AJOUTER_RNAP]   = {"ajouter_rnap",               0, 0, 0},
+        [TM_BUILD_NL]       = {"build_neighbor_list",        0, 0, 0},
+        [TM_BUILD_NL_RNAP]  = {"build_neighbor_list_rnap",   0, 0, 0},
+        [TM_CONFINEMENT]    = {"confinement_sphere",         0, 0, 0},
+        [TM_POLYMER_BM]     = {"polymere_brownian_motion",   0, 0, 0},
+        [TM_RING_FORCE]     = {"ring_force",                 0, 0, 0},
+        [TM_LIAISON_SUP]    = {"liaison_sup",                0, 0, 0},
+        [TM_BOND_RNAP]      = {"bond_rnap_bead_progressive", 0, 0, 0},
+        [TM_RETIRER_RNAP]   = {"retirer_rnap",               0, 0, 0},
+        [TM_LJ]             = {"lennard_jones_forces",       0, 0, 0},
+        [TM_LJ_RNAP]        = {"lennard_jones_forces_rnap",  0, 0, 0},
+        [TM_LJ_RNAP_RNAP]   = {"lennard_jones_rnap_rnap",    0, 0, 0},
+        [TM_COMPTEUR_GD]    = {"compteur_grands_depl",       0, 0, 0},
+        [TM_ENREGISTREMENT] = {"enregistrement_data",        0, 0, 0},
+        [TM_CALCUL_MESURES] = {"calcul_mesures",             0, 0, 0},
+        [TM_SAVE_CHECKPOINT]= {"save_checkpoint",            0, 0, 0}
+    };
+
+    // ------------------------------------------------------------------
+    // Initialisation
+    // ------------------------------------------------------------------
     clock_gettime(CLOCK_MONOTONIC, &chrono_start);
     clock_gettime(CLOCK_MONOTONIC, &last);
 
@@ -539,63 +632,63 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
     printf("▶️  Simulation lancée à t=%d avec limite de %.1f h (%.0f s)\n",
            time_depart, checkpoint_limit_h, checkpoint_limit_s);
 
-    
-    
-   
-
     for (int t = time_depart; t < cfg->T; t++) {
 
-        
-        // printf("R_rnap[0][0][0] = %lf \n ", sv->R_rnap[0][0][0]);
+        // --------------------------------------------------------------
+        // Début timer boucle
+        // --------------------------------------------------------------
+        clock_gettime(CLOCK_MONOTONIC, &loop_w0);
+        loop_c0 = clock();
 
-        
         clock_gettime(CLOCK_MONOTONIC, &now);
-        double elapsed = (now.tv_sec - last.tv_sec) +
-                         (now.tv_nsec - last.tv_nsec) * 1e-9;
+        double elapsed = timespec_diff_s(last, now);
 
-        // Affichage de progression périodique
+        // Affichage périodique
         if (elapsed >= interval) {
-            double total_elapsed =
-                (now.tv_sec - chrono_start.tv_sec) +
-                (now.tv_nsec - chrono_start.tv_nsec) * 1e-9;
+            double total_elapsed = timespec_diff_s(chrono_start, now);
             printf("Itération %d (%.1f s depuis début)\n", t, total_elapsed);
             fflush(stdout);
             last = now;
+
+            print_timer_summary(timers, TM_COUNT, "Résumé partiel des temps par fonction");
         }
 
-        // -----------------------------------------------------------------
-        // ⏱️ Vérification de la durée totale → sauvegarde avant limite SLURM
-        // -----------------------------------------------------------------
-        double total_elapsed =
-            (now.tv_sec - chrono_start.tv_sec) +
-            (now.tv_nsec - chrono_start.tv_nsec) * 1e-9;
+        // --------------------------------------------------------------
+        // Vérification limite checkpoint
+        // --------------------------------------------------------------
+        double total_elapsed = timespec_diff_s(chrono_start, now);
 
         if (total_elapsed >= checkpoint_limit_s) {
             printf("\n💾 Limite de %.1f h atteinte (%.2f h écoulées)\n",
                    checkpoint_limit_h, total_elapsed / 3600.0);
             printf("   → Sauvegarde automatique du checkpoint et arrêt propre.\n");
 
-            // for(int i = 0; i < cfg->N; i++){
-            //     printf("R[%d][0] = %lf R[%d][1] = %lf R[%d][2] = %lf \n", i, sv->R[i][0], i, sv->R[i][1], i, sv->R[i][2]);
-            // }
-
-            char checkpoint_name[256];
-            snprintf(checkpoint_name, sizeof(checkpoint_name),
-                     "checkpoint_t%d.dat", t);
-
+            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+            sec_c0 = clock();
             save_checkpoint(sv, cfg, t);
+            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+            sec_c1 = clock();
+            timer_add(&timers[TM_SAVE_CHECKPOINT], sec_w0, sec_w1, sec_c0, sec_c1);
 
-            printf("✅ Checkpoint enregistré sous %s\n", checkpoint_name);
+            printf("✅ Checkpoint enregistré à t=%d\n", t);
             fflush(stdout);
+
+            // temps final avant sortie
+            clock_gettime(CLOCK_MONOTONIC, &loop_w1);
+            loop_c1 = clock();
+            total_loop_wall += timespec_diff_s(loop_w0, loop_w1);
+            total_loop_cpu  += (double)(loop_c1 - loop_c0) / CLOCKS_PER_SEC;
+
+            print_timer_summary(timers, TM_COUNT, "Résumé final des temps par fonction");
+            printf("Temps boucle cumulé : wall = %.6f s | cpu = %.6f s\n",
+                   total_loop_wall, total_loop_cpu);
+
             exit(0);
         }
-        
 
-        // -----------------------------------------------------------------
-        //  🧩 Code de simulation existant
-        // -----------------------------------------------------------------
-        
+        // --------------------------------------------------------------
         // Ajout conditionnel des RNAP
+        // --------------------------------------------------------------
         if (cfg->nb_rnap_initial > 0) {
             int last_active = -1;
             for (int i = MAX_RNAP - 1; i >= 0; i--) {
@@ -606,7 +699,13 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
             }
 
             if (last_active == -1 && sv->nb_rnap < cfg->nb_rnap_initial) {
+                clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+                sec_c0 = clock();
                 ajouter_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, t);
+                clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+                sec_c1 = clock();
+                timer_add(&timers[TM_AJOUTER_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+
             } else if (last_active >= 0) {
                 int pos = sv->positions_bille_rnap[last_active];
                 if (pos >= cfg->debut_segment + 3 &&
@@ -619,138 +718,239 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighb
                         }
                     }
                     if (has_available) {
-                        ajouter_rnap(sv, cfg, neighbor_lists,
-                                     &neighbor_lists_rnap, t);
+                        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+                        sec_c0 = clock();
+                        ajouter_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, t);
+                        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+                        sec_c1 = clock();
+                        timer_add(&timers[TM_AJOUTER_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
                     }
                 }
             }
         }
 
-        start = clock();
-
+        // --------------------------------------------------------------
+        // Neighbor lists
+        // --------------------------------------------------------------
         if (t % 1000 == 0) {
+            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+            sec_c0 = clock();
             build_neighbor_list(sv->R, neighbor_lists, cfg->N, 2, 0);
+            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+            sec_c1 = clock();
+            timer_add(&timers[TM_BUILD_NL], sec_w0, sec_w1, sec_c0, sec_c1);
+
             if (cfg->nb_rnap_initial > 0) {
+                clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+                sec_c0 = clock();
                 build_neighbor_list_rnap_chrom(
                     cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
                     cfg->rayon_ecrantage_LJ_chrom, t);
+                clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+                sec_c1 = clock();
+                timer_add(&timers[TM_BUILD_NL_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
             }
+
             for (int i = 0; i < cfg->N; i++) {
                 fprintf(f->fichier_voisin, "%d ", neighbor_lists[i].count);
             }
             fprintf(f->fichier_voisin, "\n");
         }
 
-        if (cfg->confinement == 1)
-        {
-             confinement_sphere(cfg, sv, t);
+        // --------------------------------------------------------------
+        // Confinement
+        // --------------------------------------------------------------
+        if (cfg->confinement == 1) {
+            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+            sec_c0 = clock();
+            confinement_sphere(cfg, sv, t);
+            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+            sec_c1 = clock();
+            timer_add(&timers[TM_CONFINEMENT], sec_w0, sec_w1, sec_c0, sec_c1);
         }
-        
+
+        // --------------------------------------------------------------
+        // Dynamique polymère
+        // --------------------------------------------------------------
+        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+        sec_c0 = clock();
         polymere_brownian_motion(
             sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
             cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
             cfg->T, f->fichier_force, cfg->periode_force,
             f->fichier_force_thermique, cfg->temperature);
+        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+        sec_c1 = clock();
+        timer_add(&timers[TM_POLYMER_BM], sec_w0, sec_w1, sec_c0, sec_c1);
 
-        // double d989 = distance2(sv->R[989], sv->R[990]);
-        // double d991 = distance2(sv->R[991], sv->R[990]);
-
-        // double d99 = distance2(sv->R[100], sv->R[99]);
-        // double d100 = distance2(sv->R[101], sv->R[100]);
-     
-        // printf("d(989,990) = %f   d(991,990) = %f\n", sqrt(d989), sqrt(d991));
-
-
-        // printf("d(99,100) = %f   d(101,100) = %f\n", sqrt(d99), sqrt(d100));
-
-        
-        if (cfg->nb_rnap_initial > 0)
-        {
-            for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++)
-            {
+        // --------------------------------------------------------------
+        // RNAP
+        // --------------------------------------------------------------
+        if (cfg->nb_rnap_initial > 0) {
+            for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
                 if (sv->l_rnap[rnap] < 0)
                     continue;
+
                 int prout = 0;
-                
-                
-                if(cfg->rnap_subunits == 8)
-                {
+
+                if (cfg->rnap_subunits == 8) {
+                    clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+                    sec_c0 = clock();
                     polymere_brownian_motion_ring_force(
                         sv->R_rnap[rnap], 0.5 * cfg->alpha, cfg->K_rnap, cfg->Delta,
                         cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
                         f->fichier_force_rnap, f->fichier_force_thermique,
                         cfg->temperature);
+                    clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+                    sec_c1 = clock();
+                    timer_add(&timers[TM_RING_FORCE], sec_w0, sec_w1, sec_c0, sec_c1);
 
-                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                                sv->R_rnap[rnap], 0, 4, f->fichier_force_rnap_2, t,
-                                cfg->periode_force);
-                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                                sv->R_rnap[rnap], 2, 6, f->fichier_force_rnap_2, t,
-                                cfg->periode_force);
-                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                                sv->R_rnap[rnap], 1, 5, f->fichier_force_rnap_2, t,
-                                cfg->periode_force);
-                    liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                                sv->R_rnap[rnap], 3, 7, f->fichier_force_rnap_2, t,
-                                cfg->periode_force);
+                    for (int pair = 0; pair < 4; pair++) {
+                        int p1, p2;
+                        if (pair == 0) { p1 = 0; p2 = 4; }
+                        if (pair == 1) { p1 = 2; p2 = 6; }
+                        if (pair == 2) { p1 = 1; p2 = 5; }
+                        if (pair == 3) { p1 = 3; p2 = 7; }
+
+                        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+                        sec_c0 = clock();
+                        liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
+                                    sv->R_rnap[rnap], p1, p2, f->fichier_force_rnap_2,
+                                    t, cfg->periode_force);
+                        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+                        sec_c1 = clock();
+                        timer_add(&timers[TM_LIAISON_SUP], sec_w0, sec_w1, sec_c0, sec_c1);
+                    }
                 }
-               
-                if(cfg->quench == 0)
-                {
+
+                if (cfg->quench == 0) {
                     sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;
                 }
 
+                clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+                sec_c0 = clock();
                 bond_rnap_bead_progressive_mvt(
                     cfg, sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
                     cfg->Delta, sv->positions_bille_rnap[rnap],
                     sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
                     f->fichier_force_lea, cfg->periode_force, t);
+                clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+                sec_c1 = clock();
+                timer_add(&timers[TM_BOND_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+
                 if (1 - sv->avancement_transcription[rnap] < 1e-7) {
                     sv->is_rnap[sv->positions_bille_rnap[rnap]] = 0;
+
+                    clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+                    sec_c0 = clock();
                     retirer_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap,
                                  rnap, prout, t);
+                    clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+                    sec_c1 = clock();
+                    timer_add(&timers[TM_RETIRER_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
                 }
 
-                if (sv->positions_bille_rnap[rnap] >= 0 && sv->positions_bille_rnap[rnap] < cfg->N)
-                {
-                    sv->is_rnap[sv->positions_bille_rnap[rnap]] = 1; 
+                if (sv->positions_bille_rnap[rnap] >= 0 &&
+                    sv->positions_bille_rnap[rnap] < cfg->N) {
+                    sv->is_rnap[sv->positions_bille_rnap[rnap]] = 1;
                 }
             }
         }
 
+        // --------------------------------------------------------------
+        // Lennard-Jones
+        // --------------------------------------------------------------
+        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+        sec_c0 = clock();
         lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
                              cfg->sigma6, cfg->sigma12, cfg->Delta,
                              cfg->attache, cfg->periode_force,
                              f->fichier_force_LJ, t);
+        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+        sec_c1 = clock();
+        timer_add(&timers[TM_LJ], sec_w0, sec_w1, sec_c0, sec_c1);
+
+        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+        sec_c0 = clock();
         lennard_jones_forces_rnap(
             cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
             cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
             cfg->sigma6_rnap2, cfg->sigma12_rnap2,
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
+        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+        sec_c1 = clock();
+        timer_add(&timers[TM_LJ_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+
+        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+        sec_c0 = clock();
         lennard_jones_forces_rnap_rnap(
             cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
             cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
             sv->l_rnap);
+        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+        sec_c1 = clock();
+        timer_add(&timers[TM_LJ_RNAP_RNAP], sec_w0, sec_w1, sec_c0, sec_c1);
+
+        // --------------------------------------------------------------
+        // Divers
+        // --------------------------------------------------------------
+        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+        sec_c0 = clock();
         compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new,
                                      sv->compteur_grand_deplacement);
+        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+        sec_c1 = clock();
+        timer_add(&timers[TM_COMPTEUR_GD], sec_w0, sec_w1, sec_c0, sec_c1);
 
+        clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+        sec_c0 = clock();
         enregistrement_data(sv, cfg, f, t);
+        clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+        sec_c1 = clock();
+        timer_add(&timers[TM_ENREGISTREMENT], sec_w0, sec_w1, sec_c0, sec_c1);
 
-        end = clock();
-        duree_boucle = (double)(end - start) / CLOCKS_PER_SEC;
-        duree_tot += duree_boucle;
+        // --------------------------------------------------------------
+        // Fin timer boucle
+        // --------------------------------------------------------------
+        clock_gettime(CLOCK_MONOTONIC, &loop_w1);
+        loop_c1 = clock();
+
+        double loop_wall = timespec_diff_s(loop_w0, loop_w1);
+        double loop_cpu  = (double)(loop_c1 - loop_c0) / CLOCKS_PER_SEC;
+
+        total_loop_wall += loop_wall;
+        total_loop_cpu  += loop_cpu;
 
         if (t % (cfg->T / 10) == 0) {
+            clock_gettime(CLOCK_MONOTONIC, &sec_w0);
+            sec_c0 = clock();
             Mesures mesures = calcul_mesures(sv->R, cfg->N);
-            double duree_min = (int)(duree_tot / 60);
-            double duree_sec = duree_tot - (duree_min * 60);
-            temps_restant = duree_boucle * (cfg->T - t - 1) / 60;
-            printf("%d/%d %.f:%.f %.2fmin std %.10f moy %.10f\n", t, cfg->T,
-                   duree_min, duree_sec, temps_restant, mesures.std,
-                   mesures.moyenne);
+            clock_gettime(CLOCK_MONOTONIC, &sec_w1);
+            sec_c1 = clock();
+            timer_add(&timers[TM_CALCUL_MESURES], sec_w0, sec_w1, sec_c0, sec_c1);
+
+            double duree_min = (int)(total_loop_wall / 60.0);
+            double duree_sec = total_loop_wall - (duree_min * 60.0);
+            double temps_restant = loop_wall * (cfg->T - t - 1) / 60.0;
+
+            printf("%d/%d | wall_loop=%.6f s | cpu_loop=%.6f s | cum=%.0f:%.2f | ETA=%.2f min | std=%.10f | moy=%.10f\n",
+                   t, cfg->T,
+                   loop_wall, loop_cpu,
+                   duree_min, duree_sec,
+                   temps_restant,
+                   mesures.std, mesures.moyenne);
         }
     }
+
+    // ------------------------------------------------------------------
+    // Résumé final
+    // ------------------------------------------------------------------
+    print_timer_summary(timers, TM_COUNT, "Résumé final des temps par fonction");
+
+    printf("Temps total passé dans la boucle :\n");
+    printf("  - réel      : %.6f s (%.3f h)\n", total_loop_wall, total_loop_wall / 3600.0);
+    printf("  - processeur: %.6f s (%.3f h)\n", total_loop_cpu,  total_loop_cpu  / 3600.0);
 }
 
 void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList *neighbor_lists, NeighborList_rnap **neighbor_lists_rnap)

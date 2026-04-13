@@ -514,31 +514,40 @@ void lennard_jones_forces_rnap(const Config *cfg, double ***R_rnap, int nb_rnap,
 }
 
 void lennard_jones_forces_rnap_rnap(
-                                    const Config *cfg,
-                                    double ***R_rnap,
-                                    int nb_rnap,
-                                    double epsilon,
-                                    double sigma6,
-                                    double sigma12,
-                                    double cut_rnap2,
-                                    double Delta,
-                                    int* l_rnap)
+    const Config *cfg,
+    double ***R_rnap,
+    int nb_rnap,
+    double epsilon,
+    double sigma6,
+    double sigma12,
+    double cut_rnap2,
+    double Delta,
+    int *l_rnap)
 {
+    const int nsub = cfg->rnap_subunits;
 
-    double epsilon_rep = 100 * epsilon; 
-    double epsilon_att =  epsilon; 
+    const double epsilon_rep = 100.0 * epsilon;
+    const double epsilon_att = epsilon;
 
-    for (int rnap_i = 0; rnap_i < nb_rnap; rnap_i++)
-    {
-        if(l_rnap[rnap_i] < 0){continue;}
-        for (int sub_i = 0; sub_i < cfg->rnap_subunits; sub_i++) {
+    const double c12 = 48.0 * epsilon_rep * sigma12;
+    const double c6  = 24.0 * epsilon_att * sigma6;
 
+    const double fmax_inter = 1000.0;
+    const double fmax_intra = 300.0;
+
+    for (int rnap_i = 0; rnap_i < nb_rnap; rnap_i++) {
+        if (l_rnap[rnap_i] < 0) continue;
+
+        for (int sub_i = 0; sub_i < nsub; sub_i++) {
             double *Ri = R_rnap[rnap_i][sub_i];
 
-            // --- Interactions RNAP_i ↔ RNAP_j (j > i pour éviter les doublons) ---
+            // --------------------------------------------------
+            // Interactions RNAP_i <-> RNAP_j, avec j > i
+            // --------------------------------------------------
             for (int rnap_j = rnap_i + 1; rnap_j < nb_rnap; rnap_j++) {
-                for (int sub_j = 0; sub_j < cfg->rnap_subunits; sub_j++) {
+                if (l_rnap[rnap_j] < 0) continue;
 
+                for (int sub_j = 0; sub_j < nsub; sub_j++) {
                     double *Rj = R_rnap[rnap_j][sub_j];
 
                     double dx = Ri[0] - Rj[0];
@@ -546,70 +555,71 @@ void lennard_jones_forces_rnap_rnap(
                     double dz = Ri[2] - Rj[2];
 
                     double r2 = dx * dx + dy * dy + dz * dz;
-                    if (r2 > cut_rnap2 || r2 == 0.0)
-                        continue;
+                    if (r2 > cut_rnap2 || r2 == 0.0) continue;
 
-                    // Pré-calculs pour le potentiel LJ
-                    double r8  = r2 * r2 * r2 * r2;
-                    double r14 = r8 * r2 * r2 * r2;
+                    double inv_r2  = 1.0 / r2;
+                    double inv_r4  = inv_r2 * inv_r2;
+                    double inv_r6  = inv_r4 * inv_r2;
+                    double inv_r8  = inv_r6 * inv_r2;
+                    double inv_r14 = inv_r8 * inv_r4 * inv_r2;
 
-                    // Force de Lennard-Jones classique : F = -dU/dr
-                    double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
-                                    - 6.0 * epsilon_att * sigma6 / r8);
+                    double f = c12 * inv_r14 - c6 * inv_r8;
+                    if (f > fmax_inter) f = fmax_inter;
 
-                    // Saturation (pour éviter les explosions)
-                    const double f_max = 1000.0;
-                    if (f > f_max)
-                        f = f_max;
+                    double df = Delta * f;
+                    double fx = df * dx;
+                    double fy = df * dy;
+                    double fz = df * dz;
 
-                    // printf("f = %lf \n", f);
+                    Ri[0] += fx;
+                    Ri[1] += fy;
+                    Ri[2] += fz;
 
-                    // Application symétrique de la force
-                    Ri[0] += Delta * f * dx;
-                    Ri[1] += Delta * f * dy;
-                    Ri[2] += Delta * f * dz;
-
-                    Rj[0] -= Delta * f * dx;
-                    Rj[1] -= Delta * f * dy;
-                    Rj[2] -= Delta * f * dz;
+                    Rj[0] -= fx;
+                    Rj[1] -= fy;
+                    Rj[2] -= fz;
                 }
             }
 
-            // --- Auto-interactions entre sous-unités du même RNAP ---
-            for (int sub_j = 0; sub_j < cfg->rnap_subunits; sub_j++) {
-                if (sub_i == sub_j) continue;
-
+            // --------------------------------------------------
+            // Auto-interactions dans le même RNAP
+            // ATTENTION : on prend sub_j > sub_i pour éviter doublons
+            // --------------------------------------------------
+            for (int sub_j = sub_i + 1; sub_j < nsub; sub_j++) {
                 double *Rj = R_rnap[rnap_i][sub_j];
+
                 double dx = Ri[0] - Rj[0];
                 double dy = Ri[1] - Rj[1];
                 double dz = Ri[2] - Rj[2];
+
                 double r2 = dx * dx + dy * dy + dz * dz;
-                if (r2 > cut_rnap2 || r2 == 0.0)
-                    continue;
+                if (r2 > cut_rnap2 || r2 == 0.0) continue;
 
-                double r8  = r2 * r2 * r2 * r2;
-                double r14 = r8 * r2 * r2 * r2;
+                double inv_r2  = 1.0 / r2;
+                double inv_r4  = inv_r2 * inv_r2;
+                double inv_r6  = inv_r4 * inv_r2;
+                double inv_r8  = inv_r6 * inv_r2;
+                double inv_r14 = inv_r8 * inv_r4 * inv_r2;
 
-                // Force modifiée : plus répulsive entre sous-unités d’un même RNAP
-                double f = 4.0 * (12.0 * epsilon_rep * sigma12 / r14
-                                - 6.0 * epsilon_att * sigma6 / r8);
+                double f = c12 * inv_r14 - c6 * inv_r8;
+                if (f > fmax_intra) f = fmax_intra;
 
-                const double f_max = 300.0;
-                if (f > f_max)
-                    f = f_max;
+                double df = Delta * f;
+                double fx = df * dx;
+                double fy = df * dy;
+                double fz = df * dz;
 
-                Ri[0] += Delta * f * dx;
-                Ri[1] += Delta * f * dy;
-                Ri[2] += Delta * f * dz;
+                Ri[0] += fx;
+                Ri[1] += fy;
+                Ri[2] += fz;
 
-                Rj[0] -= Delta * f * dx;
-                Rj[1] -= Delta * f * dy;
-                Rj[2] -= Delta * f * dz;
+                Rj[0] -= fx;
+                Rj[1] -= fy;
+                Rj[2] -= fz;
             }
         }
     }
 }
-
 
 
 

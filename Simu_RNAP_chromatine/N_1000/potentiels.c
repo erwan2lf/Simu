@@ -53,96 +53,109 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
                           double epsilon, double sigma6, double sigma12,
                           double Delta, int attache,
                           int periode_enregistrement_force,
-                          FILE* fichier_force_LJ, int t) {
+                          FILE *fichier_force_LJ, int t)
+{
+    const double epsilon_att = epsilon;
+    const double epsilon_rep = epsilon;
+    const double fmax = 300.0;
 
-    double epsilon_att = epsilon; 
-    double epsilon_rep = epsilon; 
-    double deplacement = 0.0; 
-    double e = 300;
+    const double c12 = 48.0 * epsilon_rep * sigma12;
+    const double c6  = 24.0 * epsilon_att * sigma6;
+
+    const int do_log = (periode_enregistrement_force > 0) &&
+                       (t % periode_enregistrement_force == 0);
 
     double total_force = 0.0;
     int nb_paires = 0;
 
-    if (t % periode_enregistrement_force == 0) {
+    if (do_log) {
         fprintf(fichier_force_LJ, "TIMESTEP: %d\n", t);
     }
 
     for (int i = 1; i < N - 1; i++) {
-        if (t % periode_enregistrement_force == 0) {
+        double *Ri = R[i];
+
+        if (do_log) {
             fprintf(fichier_force_LJ, "Particule: %d\n", i);
         }
 
         for (int k = 0; k < neighbor_lists[i].count; k++) {
             int j = neighbor_lists[i].neighbors[k];
 
-            if (t % periode_enregistrement_force == 0) {
+            // À garder si la liste de voisins est symétrique :
+            // if (j <= i) continue;
+
+            double *Rj = R[j];
+
+            if (do_log) {
                 fprintf(fichier_force_LJ, "NEIGHBOR: %d ", j);
             }
 
-            double dx = R[i][0] - R[j][0];
-            double dy = R[i][1] - R[j][1];
-            double dz = R[i][2] - R[j][2];
+            double dx = Ri[0] - Rj[0];
+            double dy = Ri[1] - Rj[1];
+            double dz = Ri[2] - Rj[2];
 
             double r2 = dx * dx + dy * dy + dz * dz;
-            double r8 = r2 * r2 * r2 * r2;
-            double r14 = r8 * r2 * r2 * r2;
+            if (r2 == 0.0) continue;  // sécurité
 
-            double f = 4 * (12 * epsilon_rep * sigma12 / r14 - 6 * epsilon_att * sigma6 / r8);
-            if (f > e) f = e;
+            double inv_r2  = 1.0 / r2;
+            double inv_r4  = inv_r2 * inv_r2;
+            double inv_r6  = inv_r4 * inv_r2;
+            double inv_r8  = inv_r6 * inv_r2;
+            double inv_r14 = inv_r8 * inv_r4 * inv_r2;
+
+            double f = c12 * inv_r14 - c6 * inv_r8;
+            if (f > fmax) f = fmax;
 
             double fx = f * dx;
             double fy = f * dy;
             double fz = f * dz;
-            double norm_f = sqrt(fx * fx + fy * fy + fz * fz);
 
-            total_force += norm_f;
-            nb_paires++;
+            if (do_log) {
+                double norm_f = fabs(f) * sqrt(r2);
+                total_force += norm_f;
+                nb_paires++;
+            }
 
-            // Application des forces
             if (attache == 1) {
                 if (i != 0 && i != N - 1) {
-                    R[i][0] += Delta * fx;
-                    R[i][1] += Delta * fy;
-                    R[i][2] += Delta * fz;
+                    Ri[0] += Delta * fx;
+                    Ri[1] += Delta * fy;
+                    Ri[2] += Delta * fz;
                 }
                 if (j != 0 && j != N - 1) {
-                    R[j][0] -= Delta * fx;
-                    R[j][1] -= Delta * fy;
-                    R[j][2] -= Delta * fz;
+                    Rj[0] -= Delta * fx;
+                    Rj[1] -= Delta * fy;
+                    Rj[2] -= Delta * fz;
                 }
+            } else {
+                if (do_log) fprintf(fichier_force_LJ, "%f ", fx);
+                double deplacement = Delta * fx;
+                Ri[0] += deplacement;
+                if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
+
+                if (do_log) fprintf(fichier_force_LJ, "%f ", fy);
+                deplacement = Delta * fy;
+                Ri[1] += deplacement;
+                if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
+
+                if (do_log) fprintf(fichier_force_LJ, "%f ", fz);
+                deplacement = Delta * fz;
+                Ri[2] += deplacement;
+                if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
+
+                Rj[0] -= Delta * fx;
+                Rj[1] -= Delta * fy;
+                Rj[2] -= Delta * fz;
             }
 
-            if (attache == 0) {
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fx);
-                deplacement = -R[i][0];
-                R[i][0] += Delta * fx;
-                deplacement += R[i][0];
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
-
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fy);
-                deplacement = -R[i][1];
-                R[i][1] += Delta * fy;
-                deplacement += R[i][1];
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
-
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", fz);
-                deplacement = -R[i][2];
-                R[i][2] += Delta * fz;
-                deplacement += R[i][2];
-                if (t % periode_enregistrement_force == 0) fprintf(fichier_force_LJ, "%f ", deplacement);
-
-                R[j][0] -= Delta * fx;
-                R[j][1] -= Delta * fy;
-                R[j][2] -= Delta * fz;
-            }
-
-            if (t % periode_enregistrement_force == 0) {
+            if (do_log) {
                 fprintf(fichier_force_LJ, "\n");
             }
         }
     }
 
-    if (t % periode_enregistrement_force == 0 && nb_paires > 0) {
+    if (do_log && nb_paires > 0) {
         double force_moyenne = total_force / nb_paires;
         fprintf(fichier_force_LJ, "# Force moyenne LJ : %lf\n", force_moyenne);
     }

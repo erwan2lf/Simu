@@ -42,101 +42,140 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
                               FILE *fichier_force, int periode_enregistrement_force,
                               FILE *fichier_force_thermique, int temperature)
 {
-    double pot_harm[3];
+    (void)K_bend;
+    (void)t;
+    (void)test;
+    (void)truc;
+    (void)T;
+    (void)fichier_force;
+    (void)periode_enregistrement_force;
+    (void)fichier_force_thermique;
+
     const double eps = 1e-8;
+    const int do_temp = (temperature == 1);
+    const int do_bending = (bending == 1);
+    const int do_plan = (plan == 1);
+    const double sigma_th = do_temp ? sqrt(2.0 * Delta) : 0.0;
 
-    double total_force_thermique = 0.0;
-    double total_force_harmonique = 0.0;
-
-    if (t % periode_enregistrement_force == 0)
-        fprintf(fichier_force, "Timestep %d\n", t);
-
-    // --- Cas extrémité gauche ---
+    // ----------------------------
+    // Extrémité gauche
+    // ----------------------------
     if (attache == 0) {
         int p = 0, p2 = 1;
-        double di = distance(R[p2], R[p]);
+        double *Rp = R[p];
+        double *Rq = R[p2];
 
-        for (int j = 0; j < 3; j++) {
-            pot_harm[j] = (di > eps) ? K * (R[p2][j] - R[p][j]) * (1.0 - 1.0 / di) : 0.0;
-            R[p][j] = R[p][j] + Delta * pot_harm[j];
+        double dx = Rq[0] - Rp[0];
+        double dy = Rq[1] - Rp[1];
+        double dz = Rq[2] - Rp[2];
+        double r2 = dx*dx + dy*dy + dz*dz;
+
+        if (r2 > eps * eps) {
+            double r = sqrt(r2);
+            double coef = K * (1.0 - 1.0 / r);
+
+            Rp[0] += Delta * coef * dx;
+            Rp[1] += Delta * coef * dy;
+            Rp[2] += Delta * coef * dz;
         }
 
-        total_force_harmonique += sqrt(pot_harm[0]*pot_harm[0] + pot_harm[1]*pot_harm[1] + pot_harm[2]*pot_harm[2]);
-
-        if (temperature == 1) {
-            double Fvec2 = 0.0;
-            for (int j = 0; j < 3; j++) {
-                double F_alea = sqrt(2 * Delta) * randn();
-                R[p][j] += F_alea;
-                Fvec2 += F_alea * F_alea / (2 * Delta);
-            }
-            total_force_thermique += sqrt(Fvec2);
+        if (do_temp) {
+            Rp[0] += sigma_th * randn();
+            Rp[1] += sigma_th * randn();
+            Rp[2] += sigma_th * randn();
         }
     }
 
-    // --- Cas du milieu ---
+    // ----------------------------
+    // Milieu
+    // ----------------------------
     for (int i = 1; i < N - 1; i++) {
-        double d1 = distance(R[i - 1], R[i]);
-        double d0 = distance(R[i + 1], R[i]);
+        double *Ri   = R[i];
+        double *Rim1 = R[i - 1];
+        double *Rip1 = R[i + 1];
 
-        for (int j = 0; j < 3; j++) {
-            pot_harm[j] = 0.0;
-            if (d0 > eps)
-                pot_harm[j] += K * (R[i + 1][j] - R[i][j]) * (1.0 - 1.0 / d0);
-            if (d1 > eps)
-                pot_harm[j] += K * (R[i - 1][j] - R[i][j]) * (1.0 - 1.0 / d1);
+        double fx = 0.0, fy = 0.0, fz = 0.0;
 
-            R[i][j] = R[i][j] + Delta * pot_harm[j];
-            if (bending == 1)
-                R[i][j] += Delta * bending_forces[i][j];
-        }
+        // contribution du voisin i+1
+        {
+            double dx = Rip1[0] - Ri[0];
+            double dy = Rip1[1] - Ri[1];
+            double dz = Rip1[2] - Ri[2];
+            double r2 = dx*dx + dy*dy + dz*dz;
 
-        total_force_harmonique += sqrt(pot_harm[0]*pot_harm[0] + pot_harm[1]*pot_harm[1] + pot_harm[2]*pot_harm[2]);
-
-        if (temperature == 1) {
-            double Fvec2 = 0.0;
-            for (int j = 0; j < 3; j++) {
-                double F_alea = sqrt(2 * Delta) * randn();
-                R[i][j] += F_alea;
-                Fvec2 += F_alea * F_alea / (2 * Delta);
+            if (r2 > eps * eps) {
+                double r = sqrt(r2);
+                double coef = K * (1.0 - 1.0 / r);
+                fx += coef * dx;
+                fy += coef * dy;
+                fz += coef * dz;
             }
-            total_force_thermique += sqrt(Fvec2);
         }
 
-        // Réflexion sur un plan z=0
-        if (plan == 1 && R[i][2] < 0)
-            R[i][2] = -R[i][2];
+        // contribution du voisin i-1
+        {
+            double dx = Rim1[0] - Ri[0];
+            double dy = Rim1[1] - Ri[1];
+            double dz = Rim1[2] - Ri[2];
+            double r2 = dx*dx + dy*dy + dz*dz;
+
+            if (r2 > eps * eps) {
+                double r = sqrt(r2);
+                double coef = K * (1.0 - 1.0 / r);
+                fx += coef * dx;
+                fy += coef * dy;
+                fz += coef * dz;
+            }
+        }
+
+        Ri[0] += Delta * fx;
+        Ri[1] += Delta * fy;
+        Ri[2] += Delta * fz;
+
+        if (do_bending) {
+            Ri[0] += Delta * bending_forces[i][0];
+            Ri[1] += Delta * bending_forces[i][1];
+            Ri[2] += Delta * bending_forces[i][2];
+        }
+
+        if (do_temp) {
+            Ri[0] += sigma_th * randn();
+            Ri[1] += sigma_th * randn();
+            Ri[2] += sigma_th * randn();
+        }
+
+        if (do_plan && Ri[2] < 0.0) {
+            Ri[2] = -Ri[2];
+        }
     }
 
-    // --- Cas extrémité droite ---
+    // ----------------------------
+    // Extrémité droite
+    // ----------------------------
     if (attache == 0) {
         int p = N - 1, p2 = N - 2;
-        double di = distance(R[p2], R[p]);
+        double *Rp = R[p];
+        double *Rq = R[p2];
 
-        for (int j = 0; j < 3; j++) {
-            pot_harm[j] = (di > eps) ? K * (R[p2][j] - R[p][j]) * (1.0 - 1.0 / di) : 0.0;
-            R[p][j] = R[p][j] + Delta * pot_harm[j];
+        double dx = Rq[0] - Rp[0];
+        double dy = Rq[1] - Rp[1];
+        double dz = Rq[2] - Rp[2];
+        double r2 = dx*dx + dy*dy + dz*dz;
+
+        if (r2 > eps * eps) {
+            double r = sqrt(r2);
+            double coef = K * (1.0 - 1.0 / r);
+
+            Rp[0] += Delta * coef * dx;
+            Rp[1] += Delta * coef * dy;
+            Rp[2] += Delta * coef * dz;
         }
 
-        total_force_harmonique += sqrt(pot_harm[0]*pot_harm[0] + pot_harm[1]*pot_harm[1] + pot_harm[2]*pot_harm[2]);
-
-        if (temperature == 1) {
-            double Fvec2 = 0.0;
-            for (int j = 0; j < 3; j++) {
-                double F_alea = sqrt(2 * Delta) * randn();
-                R[p][j] += F_alea;
-                Fvec2 += F_alea * F_alea / (2 * Delta);
-            }
-            total_force_thermique += sqrt(Fvec2);
+        if (do_temp) {
+            Rp[0] += sigma_th * randn();
+            Rp[1] += sigma_th * randn();
+            Rp[2] += sigma_th * randn();
         }
-    }
-
-    // --- Enregistrement des forces moyennes ---
-    if (t % periode_enregistrement_force == 0) {
-        double moyenne_thermique = total_force_thermique / N;
-        double moyenne_harmonique = total_force_harmonique / N;
-        fprintf(fichier_force, "# Moyennes (thermique | harmonique): %lf %lf\n", moyenne_thermique, moyenne_harmonique);
-        fprintf(fichier_force, "# CSV: %d,%lf,%lf\n", t, moyenne_thermique, moyenne_harmonique);
     }
 }
 

@@ -52,87 +52,65 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
     (void)fichier_force_thermique;
 
     const double eps = 1e-8;
+    const double eps2 = eps * eps;
     const int do_temp = (temperature == 1);
     const int do_bending = (bending == 1);
     const int do_plan = (plan == 1);
     const double sigma_th = do_temp ? sqrt(2.0 * Delta) : 0.0;
 
-    // ----------------------------
-    // Extrémité gauche
-    // ----------------------------
-    if (attache == 0) {
-        int p = 0, p2 = 1;
-        double *Rp = R[p];
-        double *Rq = R[p2];
-
-        double dx = Rq[0] - Rp[0];
-        double dy = Rq[1] - Rp[1];
-        double dz = Rq[2] - Rp[2];
-        double r2 = dx*dx + dy*dy + dz*dz;
-
-        if (r2 > eps * eps) {
-            double r = sqrt(r2);
-            double coef = K * (1.0 - 1.0 / r);
-
-            Rp[0] += Delta * coef * dx;
-            Rp[1] += Delta * coef * dy;
-            Rp[2] += Delta * coef * dz;
-        }
-
-        if (do_temp) {
-            Rp[0] += sigma_th * randn();
-            Rp[1] += sigma_th * randn();
-            Rp[2] += sigma_th * randn();
-        }
+    // tableau temporaire des forces harmoniques
+    double (*F)[3] = calloc((size_t)N, sizeof(*F));
+    if (F == NULL) {
+        perror("calloc F");
+        exit(EXIT_FAILURE);
     }
 
-    // ----------------------------
-    // Milieu
-    // ----------------------------
-    for (int i = 1; i < N - 1; i++) {
-        double *Ri   = R[i];
-        double *Rim1 = R[i - 1];
-        double *Rip1 = R[i + 1];
+    // ----------------------------------------
+    // 1) calcul des forces par liaison
+    // ----------------------------------------
+    for (int i = 0; i < N - 1; i++) {
+        double *Ri = R[i];
+        double *Rj = R[i + 1];
 
-        double fx = 0.0, fy = 0.0, fz = 0.0;
+        double dx = Rj[0] - Ri[0];
+        double dy = Rj[1] - Ri[1];
+        double dz = Rj[2] - Ri[2];
+        double r2 = dx * dx + dy * dy + dz * dz;
 
-        // contribution du voisin i+1
-        {
-            double dx = Rip1[0] - Ri[0];
-            double dy = Rip1[1] - Ri[1];
-            double dz = Rip1[2] - Ri[2];
-            double r2 = dx*dx + dy*dy + dz*dz;
+        if (r2 <= eps2) continue;
 
-            if (r2 > eps * eps) {
-                double r = sqrt(r2);
-                double coef = K * (1.0 - 1.0 / r);
-                fx += coef * dx;
-                fy += coef * dy;
-                fz += coef * dz;
-            }
+        double r = sqrt(r2);
+        double coef = K * (1.0 - 1.0 / r);
+
+        double fx = coef * dx;
+        double fy = coef * dy;
+        double fz = coef * dz;
+
+        F[i][0]     += fx;
+        F[i][1]     += fy;
+        F[i][2]     += fz;
+
+        F[i + 1][0] -= fx;
+        F[i + 1][1] -= fy;
+        F[i + 1][2] -= fz;
+    }
+
+    // ----------------------------------------
+    // 2) mise à jour des positions
+    // ----------------------------------------
+    for (int i = 0; i < N; i++) {
+        double *Ri = R[i];
+
+        // si attache==1, on ne bouge pas les extrémités
+        if (attache == 1 && (i == 0 || i == N - 1)) {
+            continue;
         }
 
-        // contribution du voisin i-1
-        {
-            double dx = Rim1[0] - Ri[0];
-            double dy = Rim1[1] - Ri[1];
-            double dz = Rim1[2] - Ri[2];
-            double r2 = dx*dx + dy*dy + dz*dz;
+        Ri[0] += Delta * F[i][0];
+        Ri[1] += Delta * F[i][1];
+        Ri[2] += Delta * F[i][2];
 
-            if (r2 > eps * eps) {
-                double r = sqrt(r2);
-                double coef = K * (1.0 - 1.0 / r);
-                fx += coef * dx;
-                fy += coef * dy;
-                fz += coef * dz;
-            }
-        }
-
-        Ri[0] += Delta * fx;
-        Ri[1] += Delta * fy;
-        Ri[2] += Delta * fz;
-
-        if (do_bending) {
+        if (do_bending && i > 0 && i < N - 1) {
             Ri[0] += Delta * bending_forces[i][0];
             Ri[1] += Delta * bending_forces[i][1];
             Ri[2] += Delta * bending_forces[i][2];
@@ -144,39 +122,12 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
             Ri[2] += sigma_th * randn();
         }
 
-        if (do_plan && Ri[2] < 0.0) {
+        if (do_plan && i > 0 && i < N - 1 && Ri[2] < 0.0) {
             Ri[2] = -Ri[2];
         }
     }
 
-    // ----------------------------
-    // Extrémité droite
-    // ----------------------------
-    if (attache == 0) {
-        int p = N - 1, p2 = N - 2;
-        double *Rp = R[p];
-        double *Rq = R[p2];
-
-        double dx = Rq[0] - Rp[0];
-        double dy = Rq[1] - Rp[1];
-        double dz = Rq[2] - Rp[2];
-        double r2 = dx*dx + dy*dy + dz*dz;
-
-        if (r2 > eps * eps) {
-            double r = sqrt(r2);
-            double coef = K * (1.0 - 1.0 / r);
-
-            Rp[0] += Delta * coef * dx;
-            Rp[1] += Delta * coef * dy;
-            Rp[2] += Delta * coef * dz;
-        }
-
-        if (do_temp) {
-            Rp[0] += sigma_th * randn();
-            Rp[1] += sigma_th * randn();
-            Rp[2] += sigma_th * randn();
-        }
-    }
+    free(F);
 }
 
 double** gaz_motion(double **R, int N, double ** r_new, double Delta, int plan, int attache){

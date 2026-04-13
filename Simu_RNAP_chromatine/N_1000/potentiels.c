@@ -75,9 +75,9 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
     for (int i = 1; i < N - 1; i++) {
         double *Ri = R[i];
 
-        if (do_log) {
-            fprintf(fichier_force_LJ, "Particule: %d\n", i);
-        }
+        // if (do_log) {
+        //     fprintf(fichier_force_LJ, "Particule: %d\n", i);
+        // }
 
         for (int k = 0; k < neighbor_lists[i].count; k++) {
             int j = neighbor_lists[i].neighbors[k];
@@ -87,9 +87,9 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
 
             double *Rj = R[j];
 
-            if (do_log) {
-                fprintf(fichier_force_LJ, "NEIGHBOR: %d ", j);
-            }
+            // if (do_log) {
+            //     fprintf(fichier_force_LJ, "NEIGHBOR: %d ", j);
+            // }
 
             double dx = Ri[0] - Rj[0];
             double dy = Ri[1] - Rj[1];
@@ -111,11 +111,11 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
             double fy = f * dy;
             double fz = f * dz;
 
-            if (do_log) {
-                double norm_f = fabs(f) * sqrt(r2);
-                total_force += norm_f;
-                nb_paires++;
-            }
+            // if (do_log) {
+            //     double norm_f = fabs(f) * sqrt(r2);
+            //     total_force += norm_f;
+            //     nb_paires++;
+            // }
 
             if (attache == 1) {
                 if (i != 0 && i != N - 1) {
@@ -129,36 +129,36 @@ void lennard_jones_forces(double **R, NeighborList *neighbor_lists, int N,
                     Rj[2] -= Delta * fz;
                 }
             } else {
-                if (do_log) fprintf(fichier_force_LJ, "%f ", fx);
-                double deplacement = Delta * fx;
-                Ri[0] += deplacement;
-                if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
+                // if (do_log) fprintf(fichier_force_LJ, "%f ", fx);
+                // double deplacement = Delta * fx;
+                // Ri[0] += deplacement;
+                // if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
 
-                if (do_log) fprintf(fichier_force_LJ, "%f ", fy);
-                deplacement = Delta * fy;
-                Ri[1] += deplacement;
-                if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
+                // if (do_log) fprintf(fichier_force_LJ, "%f ", fy);
+                // deplacement = Delta * fy;
+                // Ri[1] += deplacement;
+                // if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
 
-                if (do_log) fprintf(fichier_force_LJ, "%f ", fz);
-                deplacement = Delta * fz;
-                Ri[2] += deplacement;
-                if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
+                // if (do_log) fprintf(fichier_force_LJ, "%f ", fz);
+                // deplacement = Delta * fz;
+                // Ri[2] += deplacement;
+                // if (do_log) fprintf(fichier_force_LJ, "%f ", deplacement);
 
                 Rj[0] -= Delta * fx;
                 Rj[1] -= Delta * fy;
                 Rj[2] -= Delta * fz;
             }
 
-            if (do_log) {
-                fprintf(fichier_force_LJ, "\n");
-            }
+            // if (do_log) {
+            //     fprintf(fichier_force_LJ, "\n");
+            // }
         }
     }
 
-    if (do_log && nb_paires > 0) {
-        double force_moyenne = total_force / nb_paires;
-        fprintf(fichier_force_LJ, "# Force moyenne LJ : %lf\n", force_moyenne);
-    }
+    // if (do_log && nb_paires > 0) {
+    //     double force_moyenne = total_force / nb_paires;
+    //     fprintf(fichier_force_LJ, "# Force moyenne LJ : %lf\n", force_moyenne);
+    // }
 }
 
 

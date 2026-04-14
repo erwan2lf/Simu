@@ -2,7 +2,7 @@
 #SBATCH --job-name=c9.86_10r
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=50
 #SBATCH --mem=5G
 #SBATCH -t 48:00:00
 #SBATCH -p amd32

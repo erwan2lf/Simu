@@ -296,8 +296,8 @@ void ajouter_rnap(SimVars *sv, const Config *cfg,
     sv->avancement_transcription[new_id] = 0.0;
     sv->nb_rnap++;
 
-    printf(C_CYAN "🧬 [t=%d] RNAP ajoutée (id=%d, nb_rnap=%d)\n" C_RESET,
-           t, new_id, sv->nb_rnap);
+    // printf(C_CYAN "🧬 [t=%d] RNAP ajoutée (id=%d, nb_rnap=%d)\n" C_RESET,
+    //        t, new_id, sv->nb_rnap);
 
     // --- Copier la position de la RNAP précédente pour continuité ---
     if (last_active >= 0) {

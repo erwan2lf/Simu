@@ -2,7 +2,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <math.h>``
+#include <omp.h>
 #include "basic_functions.h"
 
 /**
@@ -36,6 +37,54 @@
  *
  * @return Pointer to the updated position array r_new
  */
+
+/* ----------------------------------------------------------
+ * RNG thread-safe par thread
+ * ---------------------------------------------------------- */
+typedef struct {
+    struct drand48_data rng;
+    int hasSpare;
+    double spare;
+    int initialized;
+} ThreadRNG;
+
+static double randn_threadsafe(ThreadRNG *state, long seed_base)
+{
+    if (!state->initialized) {
+        int tid = omp_get_thread_num();
+        srand48_r(seed_base + 104729L * (tid + 1), &state->rng);
+        state->hasSpare = 0;
+        state->spare = 0.0;
+        state->initialized = 1;
+    }
+
+    if (state->hasSpare) {
+        state->hasSpare = 0;
+        return state->spare;
+    }
+
+    double u, v, s;
+    do {
+        double ru, rv;
+        drand48_r(&state->rng, &ru);
+        drand48_r(&state->rng, &rv);
+
+        u = 2.0 * ru - 1.0;
+        v = 2.0 * rv - 1.0;
+        s = u * u + v * v;
+    } while (s >= 1.0 || s == 0.0);
+
+    double factor = sqrt(-2.0 * log(s) / s);
+    state->spare = v * factor;
+    state->hasSpare = 1;
+
+    return u * factor;
+}
+
+
+/* ----------------------------------------------------------
+ * Dynamique brownienne du polymère
+ * ---------------------------------------------------------- */
 void polymere_brownian_motion(double **R, double K, double Delta, int N,
                               double K_bend, double **bending_forces, int attache, int plan,
                               int t, FILE *test, int bending, int truc, int T,
@@ -58,50 +107,74 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
     const int do_plan = (plan == 1);
     const double sigma_th = do_temp ? sqrt(2.0 * Delta) : 0.0;
 
-    // tableau temporaire des forces harmoniques
+    /* graine de base : stable d'un run à l'autre, varie avec t */
+    const long seed_base = 1234567L + 1000003L * (long)t;
+
+    /* tableau temporaire des forces harmoniques */
     double (*F)[3] = calloc((size_t)N, sizeof(*F));
     if (F == NULL) {
         perror("calloc F");
         exit(EXIT_FAILURE);
     }
 
-    // ----------------------------------------
-    // 1) calcul des forces par liaison
-    // ----------------------------------------
-    for (int i = 0; i < N - 1; i++) {
-        double *Ri = R[i];
-        double *Rj = R[i + 1];
+    /* états RNG par thread */
+    int max_threads = omp_get_max_threads();
+    ThreadRNG *rng_states = NULL;
 
-        double dx = Rj[0] - Ri[0];
-        double dy = Rj[1] - Ri[1];
-        double dz = Rj[2] - Ri[2];
-        double r2 = dx * dx + dy * dy + dz * dz;
-
-        if (r2 <= eps2) continue;
-
-        double r = sqrt(r2);
-        double coef = K * (1.0 - 1.0 / r);
-
-        double fx = coef * dx;
-        double fy = coef * dy;
-        double fz = coef * dz;
-
-        F[i][0]     += fx;
-        F[i][1]     += fy;
-        F[i][2]     += fz;
-
-        F[i + 1][0] -= fx;
-        F[i + 1][1] -= fy;
-        F[i + 1][2] -= fz;
+    if (do_temp) {
+        rng_states = calloc((size_t)max_threads, sizeof(*rng_states));
+        if (rng_states == NULL) {
+            perror("calloc rng_states");
+            free(F);
+            exit(EXIT_FAILURE);
+        }
     }
 
-    // ----------------------------------------
-    // 2) mise à jour des positions
-    // ----------------------------------------
+    /* ------------------------------------------------------
+     * 1) Calcul des forces par liaison
+     *    en 2 passes : liaisons paires puis impaires
+     *    => pas de conflit d'écriture dans F
+     * ------------------------------------------------------ */
+    for (int parity = 0; parity < 2; parity++) {
+        #pragma omp parallel for schedule(static)
+        for (int i = parity; i < N - 1; i += 2) {
+            double *Ri = R[i];
+            double *Rj = R[i + 1];
+
+            double dx = Rj[0] - Ri[0];
+            double dy = Rj[1] - Ri[1];
+            double dz = Rj[2] - Ri[2];
+            double r2 = dx * dx + dy * dy + dz * dz;
+
+            if (r2 <= eps2) {
+                continue;
+            }
+
+            double r = sqrt(r2);
+            double coef = K * (1.0 - 1.0 / r);
+
+            double fx = coef * dx;
+            double fy = coef * dy;
+            double fz = coef * dz;
+
+            F[i][0]     += fx;
+            F[i][1]     += fy;
+            F[i][2]     += fz;
+
+            F[i + 1][0] -= fx;
+            F[i + 1][1] -= fy;
+            F[i + 1][2] -= fz;
+        }
+    }
+
+    /* ------------------------------------------------------
+     * 2) Mise à jour des positions
+     * ------------------------------------------------------ */
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < N; i++) {
         double *Ri = R[i];
 
-        // si attache==1, on ne bouge pas les extrémités
+        /* extrémités fixées si attache == 1 */
         if (attache == 1 && (i == 0 || i == N - 1)) {
             continue;
         }
@@ -117,9 +190,11 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
         }
 
         if (do_temp) {
-            Ri[0] += sigma_th * randn();
-            Ri[1] += sigma_th * randn();
-            Ri[2] += sigma_th * randn();
+            int tid = omp_get_thread_num();
+
+            Ri[0] += sigma_th * randn_threadsafe(&rng_states[tid], seed_base);
+            Ri[1] += sigma_th * randn_threadsafe(&rng_states[tid], seed_base);
+            Ri[2] += sigma_th * randn_threadsafe(&rng_states[tid], seed_base);
         }
 
         if (do_plan && i > 0 && i < N - 1 && Ri[2] < 0.0) {
@@ -127,6 +202,7 @@ void polymere_brownian_motion(double **R, double K, double Delta, int N,
         }
     }
 
+    free(rng_states);
     free(F);
 }
 

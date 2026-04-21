@@ -15,6 +15,8 @@ echo "Dir   : $SLURM_SUBMIT_DIR"
 cd "$SLURM_SUBMIT_DIR"
 
 module load openmpi4/4.1.1
+module load fftw/3.3.8
+
 
 # =============================
 # Compilation du code
@@ -33,7 +35,11 @@ gcc -g -O3 -ffast-math -DCLUSTER \
     structures_depart.c \
     transcription.c \
     mt19937ar.c \
-    -Iinclude -lm -fopenmp -o main \
+    traj_binary.c \
+    msd.c \
+    -Iinclude ${FFTW_INC} \
+    ${FFTW_LIB} \
+    -lfftw3 -lm -fopenmp -o main \
     -Wall \
     -Wno-unused-variable \
     -Wno-unused-but-set-variable \
@@ -41,6 +47,11 @@ gcc -g -O3 -ffast-math -DCLUSTER \
     -Wno-maybe-uninitialized \
     -Wno-unused-result \
     -Wno-comment
+
+if [ $? -ne 0 ]; then
+    echo "❌ Compilation échouée — arrêt du job"
+    exit 1
+fi
 
 echo "✅ Compilation OK"
 chmod +x main
@@ -75,11 +86,26 @@ run_one_simulation() {
   cd "$sim_dir" || exit 1
 
   echo "▶ Simulation : nb_rnap=$nb_rnap | vitesse=$vitesse | K=$Ktranspt | seed=$seed"
-
   echo ">> $(date +"[%H:%M:%S]") Lancement main" | tee -a output.txt
 
   "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" \
       >> output.txt 2>> error.txt
+
+  # --- Vérification que le binaire de trajectoire existe ---
+  if [ -f "Resultats/trajectoire.bin" ]; then
+      echo "✅ trajectoire.bin présent ($(du -sh Resultats/trajectoire.bin | cut -f1))" \
+          | tee -a output.txt
+  else
+      echo "⚠️  trajectoire.bin absent" | tee -a output.txt
+  fi
+
+  # --- Vérification que le MSD a été calculé ---
+  if [ -f "Resultats/msd.txt" ]; then
+      n_lines=$(grep -c "^[^#]" Resultats/msd.txt 2>/dev/null || echo "?")
+      echo "✅ msd.txt présent ($n_lines lags)" | tee -a output.txt
+  else
+      echo "⚠️  msd.txt absent" | tee -a output.txt
+  fi
 
   echo "🏁 Fin du run (quel que soit le statut)" | tee -a output.txt
 

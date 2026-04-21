@@ -47,46 +47,46 @@ Config parse_config(int argc, char *argv[])
     cfg.N               = 1000;
     cfg.a               = 1;
     cfg.alpha           = 1.0;
-    cfg.K               = 1000.0;
+    cfg.K               = 10.0;
     cfg.K_rnap          = 500.0;
     cfg.K_bend          = 0.0;
     cfg.Delta           = 1e-4;
     cfg.epsilon         = 0.0024;
     cfg.epsilon_rnap    = 0.0024;
-    cfg.sigma           = cfg.a;
-    cfg.sigma6 = pow(cfg.sigma,6);
-    cfg.sigma12 = pow(cfg.sigma,12);
+    cfg.sigma           = 1.1*cfg.a;
+    cfg.sigma6          = pow(cfg.sigma,6);
+    cfg.sigma12         = pow(cfg.sigma,12);
     cfg.debut_segment   = 300;
     cfg.fin_segment     = 400;
     cfg.rnap_subunits   = 8;
-    cfg.rayon_ecrantage_LJ_chrom = 2.0;
-    cfg.rayon_ecrantage_LJ_rnap  = 2.0;
+    cfg.rayon_ecrantage_LJ_chrom = 1.0;
+    cfg.rayon_ecrantage_LJ_rnap  = 1.0;
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
     cfg.r_conf = 10.77;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
 
-    // print_header("Paramètres par défaut");
+    print_header("Paramètres par défaut");
 
 
-    // printf("Nombre de monomères : %d\n", cfg.N);
-    // printf("Taille des monomères : %lf\n", cfg.a);
-    // printf("Taille des RNAP (en unité de a) : %lf\n", cfg.alpha); 
-    // printf("Constante de raideur de la chromatine : %lf\n", cfg.K);
-    // printf("Constante de raideur RNAP-RNAP : %lf\n", cfg.K_rnap);
-    // printf("Module de courbure: %lf\n", cfg.K_bend);
-    // printf("Pas de temps : %lf ", cfg.Delta);
-    // printf("Intensité de LJ chromatine-chromatine : %lf\n",cfg.epsilon);
-    // printf("Intensité de LJ RNAP-RNAP : %lf\n",cfg.epsilon_rnap);
-    // printf("Sigma LJ (en unitté de a) : %lf\n", cfg.sigma); 
-    // printf("Début du segment transcrit : %d \n", cfg.debut_segment); 
-    // printf("Fin du segment transcrit : %d \n", cfg.debut_segment); 
-    // printf("Nombre de sous unités par RNAP : %d\n", cfg.rnap_subunits); 
-    // printf("Rayon écrantage LJ chromatine-chromatine : %lf \n", cfg.rayon_ecrantage_LJ_chrom);
-    // printf("Rayon écrantage LJ RNAP-RNAO : %lf \n", cfg.rayon_ecrantage_LJ_rnap);
-    // printf("Nombre de billes entre deux RNAP : %d\n", cfg.ecart_train);
-    // printf("Taille de la sphère de confinement (si 0 pas de confinement) : %d\n",cfg.r_sphere);
+    printf("Nombre de monomères : %d\n", cfg.N);
+    printf("Taille des monomères : %lf\n", cfg.a);
+    printf("Taille des RNAP (en unité de a) : %lf\n", cfg.alpha); 
+    printf("Constante de raideur de la chromatine : %lf\n", cfg.K);
+    printf("Constante de raideur RNAP-RNAP : %lf\n", cfg.K_rnap);
+    printf("Module de courbure: %lf\n", cfg.K_bend);
+    printf("Pas de temps : %lf ", cfg.Delta);
+    printf("Intensité de LJ chromatine-chromatine : %lf\n",cfg.epsilon);
+    printf("Intensité de LJ RNAP-RNAP : %lf\n",cfg.epsilon_rnap);
+    printf("Sigma LJ (en unitté de a) : %lf\n", cfg.sigma); 
+    printf("Début du segment transcrit : %d \n", cfg.debut_segment); 
+    printf("Fin du segment transcrit : %d \n", cfg.fin_segment); 
+    printf("Nombre de sous unités par RNAP : %d\n", cfg.rnap_subunits); 
+    printf("Rayon écrantage LJ chromatine-chromatine : %lf \n", cfg.rayon_ecrantage_LJ_chrom);
+    printf("Rayon écrantage LJ RNAP-RNAO : %lf \n", cfg.rayon_ecrantage_LJ_rnap);
+    printf("Nombre de billes entre deux RNAP : %d\n", cfg.ecart_train);
+    printf("Taille de la sphère de confinement (si 0 pas de confinement) : %lf\n",cfg.r_conf);
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -95,7 +95,7 @@ Config parse_config(int argc, char *argv[])
 
 
     cfg.attache = 0; // attache
-    cfg.confinement = 1; // confinement
+    cfg.confinement = 0; // confinement
     cfg.plan = 0; // plan
     cfg.bending = 0; // bending
     cfg.critere = 1; // critere
@@ -111,17 +111,15 @@ Config parse_config(int argc, char *argv[])
 
     // print_header("Durées et périodicitéss");
 
-    int N_rec = 1000; 
+    int N_rec = 1e5; 
     int k;
 
     if(cfg.nb_rnap_initial == 0)
     {
-
-        cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
-        cfg.T = cfg.T + cfg.T/10;
-        // cfg.T = 13200000;
-        printf("T0 = %d\n", cfg.T);
-        cfg.T_eq = 0;
+        printf("ALLO ");
+        // cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
+        cfg.T = 1e5;
+        cfg.T_eq = cfg.T/10;
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.periode_enregistrement = k;  // periode_enregistrement
@@ -142,6 +140,7 @@ Config parse_config(int argc, char *argv[])
         printf("T1 = %d\n", cfg.T);
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.T =  k * N_rec;
+        cfg.T_eq = cfg.T/10;
         printf("Tf = %d\n", cfg.T);
 
         cfg.periode_enregistrement = k;  // periode_enregistrement
@@ -160,9 +159,6 @@ Config parse_config(int argc, char *argv[])
     {
         cfg.vitesse_rnap = 0;
     }
-    
-    
-
     
     // cfg.periode_enregistrement = k;  // periode_enregistrement
     // printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
@@ -187,18 +183,18 @@ Config parse_config(int argc, char *argv[])
 
 
     // --- RNAP
-    cfg.a_rnap = cfg.alpha; 
-    cfg.a_transpt = (cfg.alpha + 1)/2;
-    cfg.mono_transcrpt = 10; 
-    cfg.sigma_rnap = (cfg.alpha + 1)/2; 
-    cfg.sigma6_rnap = pow(cfg.sigma_rnap, 6);
-    cfg.sigma12_rnap = pow(cfg.sigma_rnap, 12);
+    cfg.a_rnap              = cfg.alpha; 
+    cfg.a_transpt           = (cfg.alpha + 1)/2;
+    cfg.mono_transcrpt      = 10; 
+    cfg.sigma_rnap          = 1.2*(cfg.alpha + 1)/2; 
+    cfg.sigma6_rnap         = pow(cfg.sigma_rnap, 6);
+    cfg.sigma12_rnap        = pow(cfg.sigma_rnap, 12);
 
-    cfg.sigma_rnap2 = cfg.alpha; 
-    cfg.sigma6_rnap2 = pow(cfg.sigma_rnap2, 6);
-    cfg.sigma12_rnap2 = pow(cfg.sigma_rnap2, 12);
+    cfg.sigma_rnap2         = cfg.alpha; 
+    cfg.sigma6_rnap2        = pow(cfg.sigma_rnap2, 6);
+    cfg.sigma12_rnap2       = pow(cfg.sigma_rnap2, 12);
 
-    cfg.dx_avancement_rnap = cfg.vitesse_rnap * cfg.Delta; 
+    cfg.dx_avancement_rnap  = cfg.vitesse_rnap * cfg.Delta; 
 
 
     // === Noms des fichiers ===

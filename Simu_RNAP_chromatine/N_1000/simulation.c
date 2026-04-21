@@ -5,6 +5,7 @@
 #include "transcription.h"
 #include "file.h"
 #include "colors.h"
+#include "traj_binary.h"
 #include "mt19937ar.h"
 
 
@@ -16,17 +17,6 @@
 #define DIM 3
 
 #define DEBUG_TIMING 0
-
-#if DEBUG_TIMING
-    #define TIMER_START(w0,c0) clock_gettime(CLOCK_MONOTONIC, &w0); c0 = clock();
-    #define TIMER_END(w0,w1,c0,c1,tm) \
-        clock_gettime(CLOCK_MONOTONIC, &w1); \
-        c1 = clock(); \
-        timer_add(&tm, w0, w1, c0, c1);
-#else
-    #define TIMER_START(w0,c0)
-    #define TIMER_END(w0,w1,c0,c1,tm)
-#endif
 
 typedef struct {
     const char *name;
@@ -94,7 +84,6 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
     sv->R = allocate_matrix(cfg->N, 3);
     sv->R_new = allocate_matrix(cfg->N, 3);
     sv->t_link = allocate_matrix(cfg->N-1,3);
-    sv->R_matrix = (double**)malloc(sizeof(double*)); 
     sv->compteur_mono_rnap = calloc(cfg->N, sizeof(int));
     sv->list_monomere = (int*)malloc(cfg->Nm * sizeof(int));
     for(int i = 0; i < cfg->Nm; i++) {
@@ -206,7 +195,6 @@ void cleanup_sim_vars(SimVars *sv, Config *cfg)
     // --- Matrices simples ---
     free_matrix_if_allocated(&sv->bending_forces, cfg->N);
     free_matrix_if_allocated(&sv->R, cfg->N);
-    free_matrix_if_allocated(&sv->R_new, cfg->N);
     free_matrix_if_allocated(&sv->t_link, cfg->N - 1);
     free_matrix_if_allocated(&sv->Rbb, sv->T_correlation);
     free_matrix_if_allocated(&sv->R_segment, sv->T_correlation);
@@ -226,7 +214,6 @@ void cleanup_sim_vars(SimVars *sv, Config *cfg)
     free_if_allocated((void**)&sv->log10_time);
     free_if_allocated((void**)&sv->list_monomere);
     free_if_allocated((void**)&sv->compteur_mono_rnap);
-    free_if_allocated((void**)&sv->R_matrix);
 
     // --- MSD ---
     free_matrix_cube_if_allocated(sv->stock_msd, cfg->nbr_total_simu, sv->T_msd);
@@ -567,7 +554,17 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
             else{
                 enregistrement(f->fichier, sv->R, cfg->N, cfg->T_eq + t);
             }
+
+            traj_write_frame(
+            f->traj_bin,
+            t,
+            sv->R,
+            sv->R_rnap,
+            sv->l_rnap,
+            cfg
+        );
         }
+
 }
 
 

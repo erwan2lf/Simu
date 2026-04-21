@@ -7,6 +7,7 @@
 #include "include/simulation.h"
 #include "transcription.h"
 #include "file.h"
+#include "msd.h"
 
 
 #define MAX_RNAP 50
@@ -68,6 +69,8 @@ int main(int argc, char*argv[])
 
     printf("Premier nombre aléatoire : %.10f\n", genrand_real2());
 
+
+    printf("DEBUG periode_enregistrement = %d\n", cfg.periode_enregistrement);
     open_simulation_files(&cfg, &f);
 
 
@@ -118,9 +121,16 @@ int main(int argc, char*argv[])
         // free_matrix_if_allocated(&R_matrix, cfg.N);
 
     }
-    
 
     simu_LJ_RNAP_erwan(&cfg, &sv, &f, t_start);
+
+
+    msd_compute_from_file(
+        "Resultats/trajectoire.bin",
+        "Resultats/msd.txt",
+        1e5   // n_lags = 10^5
+        );
+        
 
     
     cleanup_sim_vars(&sv, &cfg);

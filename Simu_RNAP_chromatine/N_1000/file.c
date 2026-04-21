@@ -1,5 +1,6 @@
 #include "file.h"
 #include"config.h"
+#include"traj_binary.h"
 #include <stdlib.h>
 
 #include <sys/stat.h>   // mkdir
@@ -135,6 +136,10 @@ void open_simulation_files(const Config *cfg, Files *f)
     snprintf(path, sizeof(path), "%s/rnap.txt", result_dir);
     f->fichier_rnap = fopen(path, mode);
 
+
+    snprintf(path, sizeof(path), "%s/trajectoire.bin", result_dir);
+    f->traj_bin = traj_open(path, cfg);
+
     
 
     //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -164,6 +169,7 @@ void open_simulation_files(const Config *cfg, Files *f)
     CHECK_FILE(f->fichier_correl_segment, cfg->nom_fichier_correl_segment);
     CHECK_FILE(f->param, "param.txt");
     CHECK_FILE(f->fichier_rnap, "rnap.txt");
+    CHECK_FILE(f->traj_bin, "trajectoire.bin");
 
 #undef CHECK_FILE
 
@@ -178,8 +184,8 @@ void close_simulation_files(const Config *cfg, Files *f){
 
     fclose(f->test);
     fclose(f->test2);
-    fclose(f->centre_de_masse);
 
+    fclose(f->fichier_force);
     fclose(f->centre_de_masse);
     fclose(f->fichier_force_rnap);
     fclose(f->fichier_force_rnap_2);
@@ -194,6 +200,11 @@ void close_simulation_files(const Config *cfg, Files *f){
     fclose(f->fichier_endtoend_apres);
     fclose(f->fichier_voisin);
     fclose(f->fichier_correl_segment);
+
+    fclose(f->param);             
+    fclose(f->fichier_rnap);      
+
+    traj_close(f->traj_bin);
     
 }
 

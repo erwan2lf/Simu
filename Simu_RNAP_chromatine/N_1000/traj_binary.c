@@ -53,16 +53,10 @@ FILE *traj_open(const char *path, const Config *cfg)
     write_i32(f, (int32_t)cfg->nb_rnap_initial);
     write_i32(f, (int32_t)cfg->rnap_subunits);
     write_f64(f, cfg->Delta);
-    printf("\n");
-    printf("DEBUG a = %f\n", cfg->a);
-    printf("DEBUG Delta = %e\n", cfg->Delta);
-    printf("\n");
     write_f64(f, cfg->a);
     write_i32(f, (int32_t)cfg->periode_enregistrement);
 
     fflush(f);
-
-    printf("DEBUG traj_open : pos après header = %ld\n", ftell(f));
 
     printf("📂 traj_binary ouvert : %s\n", path);
     printf("   N_segment=%d  [%d → %d]  nb_rnap=%d  nsub=%d\n",

@@ -128,7 +128,7 @@ int main(int argc, char*argv[])
     msd_compute_from_file(
         "Resultats/trajectoire.bin",
         "Resultats/msd.txt",
-        1e5   // n_lags = 10^5
+        100000   // n_lags = 10^5
         );
         
 

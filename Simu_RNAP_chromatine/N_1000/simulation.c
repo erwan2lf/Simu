@@ -3,6 +3,7 @@
 #include "simulation.h" 
 #include "basic_functions.h"
 #include "transcription.h"
+#include "forces.h"
 #include "file.h"
 #include "colors.h"
 #include "traj_binary.h"
@@ -11,6 +12,7 @@
 
 #include <stdlib.h>  // pour malloc, calloc
 #include <math.h>    // pour log10()
+#include <string.h>  // memset()
 
 #define MAX_RNAP 50
 #define MAX_RNAP_SUBUNITS 8 
@@ -188,7 +190,19 @@ void init_sim_vars(SimVars *sv, Config *cfg) {
 
     sv->cdm_conf = malloc(3 * sizeof(double));
     sv->nb_move_large = 0;
-}
+
+
+    // Forces chromatine
+    sv->F_chrom = calloc(cfg->N, sizeof(*sv->F_chrom));
+
+    // Forces RNAP
+
+    sv->F_rnap = calloc(cfg->rnap_subunits, sizeof(*sv->F_rnap));
+    sv->F_chrom_rnap = calloc(cfg->N, sizeof(*sv->F_chrom_rnap));
+    sv->F_rnap_all = malloc(MAX_RNAP * sizeof(*sv->F_rnap_all));
+    for (int i = 0; i < MAX_RNAP; i++)
+        sv->F_rnap_all[i] = calloc(cfg->rnap_subunits, sizeof(**sv->F_rnap_all));
+    }
 
 void cleanup_sim_vars(SimVars *sv, Config *cfg)
 {
@@ -245,6 +259,15 @@ void cleanup_sim_vars(SimVars *sv, Config *cfg)
             }
         free(sv->R_monomere_arrays);
     }
+
+    // Forces
+    free(sv->F_chrom);
+    free(sv->F_chrom_rnap);
+    free(sv->F_rnap);
+
+    for (int i = 0; i < MAX_RNAP; i++)
+        free(sv->F_rnap_all[i]);
+    free(sv->F_rnap_all);
 }
 
 void ajouter_rnap(SimVars *sv, const Config *cfg,
@@ -533,7 +556,7 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
             fprintf(f->fichier_endtoend_apres, "%f %d \n", distance(sv->R[(4*cfg->N)/10], sv->R[(5*cfg->N)/10]), t/cfg->periode_endtoend);
         }
 
-        if(t%cfg->periode_enregistrement == 0){
+        if(t%cfg->periode_lammps == 0){
             if(sv->nb_rnap > 0){
                 enregistrement_RNAP(
                     f->fichier,                 
@@ -554,22 +577,13 @@ void enregistrement_data(SimVars *sv, const Config *cfg, const Files *f, int t){
             else{
                 enregistrement(f->fichier, sv->R, cfg->N, cfg->T_eq + t);
             }
-
-            traj_write_frame(
-            f->traj_bin,
-            t,
-            sv->R,
-            sv->R_rnap,
-            sv->l_rnap,
-            cfg
-        );
         }
 
+        // Binaire MSD — toutes les periode_enregistrement frames
+        if (t % cfg->periode_enregistrement == 0) {
+            traj_write_frame(f->traj_bin, t, sv->R, sv->R_rnap, sv->l_rnap, cfg);
+        }
 }
-
-
-
-
 
 #define DEBUG_TIMING   0
 #define DEBUG_PROGRESS 1
@@ -678,16 +692,16 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         // --------------------------------------------------------------
         // Affichage périodique DEBUG
         // --------------------------------------------------------------
-#if DEBUG_TIMING
-        if (elapsed >= interval) {
-            double total_elapsed_dbg = timespec_diff_s(chrono_start, now);
-            printf("Itération %d (%.1f s depuis début)\n", t, total_elapsed_dbg);
-            fflush(stdout);
-            last = now;
+        #if DEBUG_TIMING
+                if (elapsed >= interval) {
+                    double total_elapsed_dbg = timespec_diff_s(chrono_start, now);
+                    printf("Itération %d (%.1f s depuis début)\n", t, total_elapsed_dbg);
+                    fflush(stdout);
+                    last = now;
 
-            print_timer_summary(timers, TM_COUNT, "Résumé partiel");
-        }
-#endif
+                    print_timer_summary(timers, TM_COUNT, "Résumé partiel");
+                }
+        #endif
 
         // --------------------------------------------------------------
         // Vérification limite checkpoint
@@ -711,13 +725,13 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
             total_loop_wall += timespec_diff_s(loop_w0, loop_w1);
             total_loop_cpu  += (double)(loop_c1 - loop_c0) / CLOCKS_PER_SEC;
 
-#if DEBUG_TIMING
-            print_timer_summary(timers, TM_COUNT, "Résumé final");
-            printf("Temps boucle cumulé : wall = %.6f s | cpu = %.6f s\n",
-                   total_loop_wall, total_loop_cpu);
-#endif
-            exit(0);
-        }
+            #if DEBUG_TIMING
+                        print_timer_summary(timers, TM_COUNT, "Résumé final");
+                        printf("Temps boucle cumulé : wall = %.6f s | cpu = %.6f s\n",
+                            total_loop_wall, total_loop_cpu);
+            #endif
+                        exit(0);
+                    }
 
         // --------------------------------------------------------------
         // Ajout conditionnel des RNAP
@@ -731,11 +745,9 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                 }
             }
 
-            if (last_active == -1 && sv->nb_rnap < cfg->nb_rnap_initial) {
-                TIMER_START(sec_w0, sec_c0);
+            if (last_active == -1 && sv->nb_rnap < cfg->nb_rnap_initial)
+            {
                 ajouter_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap, t);
-                TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_AJOUTER_RNAP]);
-
             } else if (last_active >= 0) {
                 int pos = sv->positions_bille_rnap[last_active];
                 if (pos >= cfg->debut_segment + 3 &&
@@ -778,78 +790,122 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
             fprintf(f->fichier_voisin, "\n");
         }
 
-        // --------------------------------------------------------------
-        // Confinement
-        // --------------------------------------------------------------
-        if (cfg->confinement == 1) {
-            TIMER_START(sec_w0, sec_c0);
-            confinement_sphere(cfg, sv, t);
-            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_CONFINEMENT]);
-        }
+        
+        memset(sv->F_chrom, 0, cfg->N * sizeof(*sv->F_chrom)); // Remise à zéro des forces
 
+        for (int i = 0; i < cfg->N; i++) {
+            if (isnan(sv->F_chrom[i][0]) || isinf(sv->F_chrom[i][0])) {
+                printf("❌ Force NaN/Inf sur F_chrom[%d] à t=%d\n", i, t);
+                exit(1);
+            }
+        }
         // --------------------------------------------------------------
         // Dynamique polymère
         // --------------------------------------------------------------
         TIMER_START(sec_w0, sec_c0);
-        polymere_brownian_motion(
-            sv->R, cfg->K, cfg->Delta, cfg->N, cfg->K_bend, sv->bending_forces,
-            cfg->attache, cfg->plan, t, f->test, cfg->bending, sv->truc,
-            cfg->T, f->fichier_force, cfg->periode_force,
-            f->fichier_force_thermique, cfg->temperature);
+        accumulate_spring_forces(sv->R, sv->F_chrom, cfg->K, cfg->N);
         TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_POLYMER_BM]);
 
         // --------------------------------------------------------------
         // RNAP
         // --------------------------------------------------------------
         if (cfg->nb_rnap_initial > 0) {
+
+            // Remise à zéro des réactions RNAP→chrom (une fois pour toutes les RNAP)
+            memset(sv->F_chrom_rnap, 0, cfg->N * sizeof(*sv->F_chrom_rnap)); // Remise à zéro des réaction chrom-rnap
+
+            // Remise à zéro des forces RNAP-RNAP
+            for (int i = 0; i < MAX_RNAP; i++)
+                memset(sv->F_rnap_all[i], 0, cfg->rnap_subunits * sizeof(*sv->F_rnap_all[i]));
+
+            // ── LJ RNAP-RNAP : calcul global avant la boucle individuelle ──
+            TIMER_START(sec_w0, sec_c0);
+            accumulate_lj_rnap_rnap(cfg, sv->R_rnap, sv->F_rnap_all, sv->nb_rnap, sv->l_rnap,
+                                    cfg->epsilon, cfg->sigma6_rnap, cfg->sigma12_rnap,
+                                    cfg->rayon_ecrantage_LJ_rnap * cfg->rayon_ecrantage_LJ_rnap);
+            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP_RNAP]);
+
             for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
                 if (sv->l_rnap[rnap] < 0)
                     continue;
 
                 int prout = 0;
 
+                // Remise à zéro forces de cette RNAP
+                // (F_rnap_all[rnap] a déjà les contributions LJ RNAP-RNAP)
+                // On réutilise sv->F_rnap comme buffer temporaire pour anneau + diag + bond
+                memset(sv->F_rnap, 0, cfg->rnap_subunits * sizeof(*sv->F_rnap));
+
                 if (cfg->rnap_subunits == 8) {
+                    // ── Ressort anneau ──────────────────────────────────────────
                     TIMER_START(sec_w0, sec_c0);
-                    polymere_brownian_motion_ring_force(
-                        sv->R_rnap[rnap], 0.5 * cfg->alpha, cfg->K_rnap, cfg->Delta,
-                        cfg->rnap_subunits, rnap, f->test, t, cfg->periode_force,
-                        f->fichier_force_rnap, f->fichier_force_thermique,
-                        cfg->temperature);
+                    accumulate_ring_forces(sv->R_rnap[rnap], sv->F_rnap,
+                                        cfg->K_rnap, 0.5 * cfg->alpha,
+                                        cfg->rnap_subunits);
                     TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_RING_FORCE]);
 
-                    for (int pair = 0; pair < 4; pair++) {
-                        int p1, p2;
-                        if (pair == 0) { p1 = 0; p2 = 4; }
-                        if (pair == 1) { p1 = 2; p2 = 6; }
-                        if (pair == 2) { p1 = 1; p2 = 5; }
-                        if (pair == 3) { p1 = 3; p2 = 7; }
-
-                        TIMER_START(sec_w0, sec_c0);
-                        liaison_sup(3 * cfg->a_transpt, 2 * cfg->K_rnap, cfg->Delta,
-                                    sv->R_rnap[rnap], p1, p2, f->fichier_force_rnap_2,
-                                    t, cfg->periode_force);
-                        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LIAISON_SUP]);
+                    // ── Liaisons diagonales ─────────────────────────────────────
+                    TIMER_START(sec_w0, sec_c0);
+                    accumulate_diagonal_forces(sv->R_rnap[rnap], sv->F_rnap,
+                                            2 * cfg->K_rnap, cfg->a_transpt,
+                                            cfg->rnap_subunits);
+                    TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LIAISON_SUP]);
+                    // Après accumulate_diagonal_forces
+                    for (int s = 0; s < cfg->rnap_subunits; s++) {
+                        if (isnan(sv->F_rnap[s][0])) {
+                            printf("❌ NaN après diagonal_forces, rnap=%d sub=%d t=%d\n", rnap, s, t);
+                            exit(1);
+                        }
                     }
                 }
 
+                // ── Avancement transcription ────────────────────────────────────
                 if (cfg->quench == 0) {
                     sv->avancement_transcription[rnap] += cfg->dx_avancement_rnap;
                 }
 
+                // ── Couplage RNAP ↔ chromatine ──────────────────────────────────
                 TIMER_START(sec_w0, sec_c0);
-                bond_rnap_bead_progressive_mvt(
-                    cfg, sv->R, sv->R_rnap[rnap], cfg->a_transpt, cfg->K_transpt,
-                    cfg->Delta, sv->positions_bille_rnap[rnap],
-                    sv->avancement_transcription[rnap], cfg->a, cfg->alpha,
-                    f->fichier_force_lea, cfg->periode_force, t);
+                accumulate_bond_rnap_chrom(cfg,
+                                        sv->R, sv->R_rnap[rnap],
+                                        sv->F_chrom_rnap, sv->F_rnap,
+                                        sv->positions_bille_rnap[rnap],
+                                        sv->avancement_transcription[rnap]);
                 TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_BOND_RNAP]);
 
+                // ── LJ RNAP ↔ chromatine ────────────────────────────────────────
+                TIMER_START(sec_w0, sec_c0);
+                accumulate_lj_rnap_chrom(cfg,
+                                        sv->R_rnap[rnap], sv->R,
+                                        sv->F_rnap, sv->F_chrom_rnap,
+                                        neighbor_lists_rnap,
+                                        rnap,
+                                        cfg->epsilon_rnap,
+                                        cfg->sigma6_rnap, cfg->sigma12_rnap,
+                                        cfg->rayon_ecrantage_LJ_rnap * cfg->rayon_ecrantage_LJ_rnap
+                                        );
+                TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP]);
+
+                // ── Fusion F_rnap + F_rnap_all[rnap] ───────────────────────────
+                // F_rnap_all contient les contributions LJ RNAP-RNAP calculées avant
+                for (int s = 0; s < cfg->rnap_subunits; s++) {
+                    sv->F_rnap[s][0] += sv->F_rnap_all[rnap][s][0];
+                    sv->F_rnap[s][1] += sv->F_rnap_all[rnap][s][1];
+                    sv->F_rnap[s][2] += sv->F_rnap_all[rnap][s][2];
+                }
+                
+                // ── Mise à jour Euler-Maruyama RNAP ─────────────────────────────
+                euler_maruyama_update_flat(sv->R_rnap[rnap], sv->F_rnap,
+                                        cfg->rnap_subunits, cfg->Delta,
+                                        cfg->temperature);
+
+                // ── Logique de sortie ───────────────────────────────────────────
                 if (1 - sv->avancement_transcription[rnap] < 1e-7) {
                     sv->is_rnap[sv->positions_bille_rnap[rnap]] = 0;
 
                     TIMER_START(sec_w0, sec_c0);
                     retirer_rnap(sv, cfg, neighbor_lists, &neighbor_lists_rnap,
-                                 rnap, prout, t);
+                                rnap, prout, t);
                     TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_RETIRER_RNAP]);
                 }
 
@@ -858,41 +914,104 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                     sv->is_rnap[sv->positions_bille_rnap[rnap]] = 1;
                 }
             }
+
+            // ── Ajout des réactions RNAP dans F_chrom ───────────────────────────
+            for (int i = 0; i < cfg->N; i++) {
+                sv->F_chrom[i][0] += sv->F_chrom_rnap[i][0];
+                sv->F_chrom[i][1] += sv->F_chrom_rnap[i][1];
+                sv->F_chrom[i][2] += sv->F_chrom_rnap[i][2];
+            }
         }
 
         // --------------------------------------------------------------
         // Lennard-Jones
         // --------------------------------------------------------------
         TIMER_START(sec_w0, sec_c0);
-        lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
-                             cfg->sigma6, cfg->sigma12, cfg->Delta,
-                             cfg->attache, cfg->periode_force,
-                             f->fichier_force_LJ, t);
+        accumulate_lj_forces(sv->R, sv->F_chrom, neighbor_lists, cfg->N,
+                     cfg->epsilon, cfg->sigma6, cfg->sigma12,
+                     cfg->attache);
+        // lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
+        //                      cfg->sigma6, cfg->sigma12, cfg->Delta,
+        //                      cfg->attache, cfg->periode_force,
+        //                      f->fichier_force_LJ, t);
         TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ]);
 
-        TIMER_START(sec_w0, sec_c0);
-        lennard_jones_forces_rnap(
-            cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
-            cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
-            cfg->sigma6_rnap2, cfg->sigma12_rnap2,
-            cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
-            f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
-        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP]);
+        // TIMER_START(sec_w0, sec_c0);
+        // lennard_jones_forces_rnap(
+        //     cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
+        //     cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
+        //     cfg->sigma6_rnap2, cfg->sigma12_rnap2,
+        //     cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
+        //     f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
+        // TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP]);
 
+        // TIMER_START(sec_w0, sec_c0);
+        // lennard_jones_forces_rnap_rnap(
+        //     cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
+        //     cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
+        //     sv->l_rnap);
+        // TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP_RNAP]);
+
+        // --------------------------------------------------------------
+        // Confinement
+        // --------------------------------------------------------------
+        if (cfg->confinement == 1) {
+            TIMER_START(sec_w0, sec_c0);
+            accumulate_conf_forces(sv->R, sv->F_chrom, cfg->N,
+                sv->cdm_conf, cfg->r_conf,
+                cfg->sigma_conf, cfg->epsilon_conf);
+            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_CONFINEMENT]);
+        }
+
+        // --------------------------------------------------------------
+        // Compteur de grands déplacements
+        // --------------------------------------------------------------
+        double **R_temp = allocate_matrix(cfg->N, 3);
+
+        for (int i = 0; i<cfg->N; i++){
+            R_temp[i][0] = sv->R[i][0];
+            R_temp[i][1] = sv->R[i][1];
+            R_temp[i][2] = sv->R[i][2];
+            // printf("R_temp = %lf %lf %lf\n", R_temp[i][0], R_temp[i][1], R_temp[i][2]);
+        }
+        // R_temp = sv->R;
+
+        // // Juste avant euler_maruyama_update
+        // for (int i = 0; i < cfg->N; i++) {
+        //     if (isnan(sv->R[i][0]) || isnan(sv->R[i][1]) || isnan(sv->R[i][2])) {
+        //         printf("❌ NaN détecté sur R[%d] à t=%d\n", i, t);
+        //         exit(1);
+        //     }
+        // }
+        // for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
+        //     if (sv->l_rnap[rnap] < 0) continue;
+        //     for (int s = 0; s < cfg->rnap_subunits; s++) {
+        //         if (isnan(sv->R_rnap[rnap][s][0])) {
+        //             printf("❌ NaN détecté sur R_rnap[%d][%d] à t=%d\n", rnap, s, t);
+        //             exit(1);
+        //         }
+        //     }
+        // }
+        // --------------------------------------------------------------
+        // Mise à jour des positions (Euler Maruyama)
+        // --------------------------------------------------------------
+        euler_maruyama_update(sv->R, sv->F_chrom, cfg->N, cfg->Delta,
+            cfg->temperature, cfg->attache, cfg->plan);
+        
+        // --------------------------------------------------------------
+        // Compteur de grands déplacements
+        // --------------------------------------------------------------
+        
         TIMER_START(sec_w0, sec_c0);
-        lennard_jones_forces_rnap_rnap(
-            cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
-            cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
-            sv->l_rnap);
-        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP_RNAP]);
+        compteur_grands_deplacements(cfg->N, cfg->T, sv->R, R_temp,
+                                     &sv->compteur_grand_deplacement);
+        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_COMPTEUR_GD]);
+        free_matrix_if_allocated(&R_temp, cfg->N);
+
 
         // --------------------------------------------------------------
         // Divers
         // --------------------------------------------------------------
-        TIMER_START(sec_w0, sec_c0);
-        compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new,
-                                     sv->compteur_grand_deplacement);
-        TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_COMPTEUR_GD]);
 
         TIMER_START(sec_w0, sec_c0);
         enregistrement_data(sv, cfg, f, t);
@@ -910,15 +1029,15 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         total_loop_wall += loop_wall;
         total_loop_cpu  += loop_cpu;
 
-#if DEBUG_PROGRESS
-        if (t % print_stride == 0) {
-            Mesures mesures = calcul_mesures(sv->R, cfg->N);
+        #if DEBUG_PROGRESS
+                if (t % print_stride == 0) {
+                    Mesures mesures = calcul_mesures(sv->R, cfg->N);
 
-#if DEBUG_TIMING
-            TIMER_START(sec_w0, sec_c0);
-            // on ne veut pas timer deux fois calcul_mesures ; donc on peut l'omettre ici
-            TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_CALCUL_MESURES]);
-#endif
+        #if DEBUG_TIMING
+                    TIMER_START(sec_w0, sec_c0);
+                    // on ne veut pas timer deux fois calcul_mesures ; donc on peut l'omettre ici
+                    TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_CALCUL_MESURES]);
+        #endif
 
             double duree_min = (int)(total_loop_wall / 60.0);
             double duree_sec = total_loop_wall - (duree_min * 60.0);
@@ -932,7 +1051,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                    mesures.std, mesures.moyenne);
             fflush(stdout);
         }
-#endif
+        #endif
     }
 
     // ------------------------------------------------------------------
@@ -945,6 +1064,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
     printf("Temps total passé dans la boucle :\n");
     printf("  - réel      : %.6f s (%.3f h)\n", total_loop_wall, total_loop_wall / 3600.0);
     printf("  - processeur: %.6f s (%.3f h)\n", total_loop_cpu,  total_loop_cpu  / 3600.0);
+    printf("Nombre de grand déplacements : %d Pourcentage de grands déplacements : %lf\n",sv->compteur_grand_deplacement, (double)sv->compteur_grand_deplacement/(cfg->N*cfg->T));
     fflush(stdout);
 }
 
@@ -991,7 +1111,6 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
             cfg->sigma6_rnap2, cfg->sigma12_rnap2,
             cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
             f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
-        compteur_grands_deplacements(cfg->N, cfg->T, sv->R, sv->R_new, sv->compteur_grand_deplacement);
 
 
         end = clock();  

@@ -48,9 +48,9 @@ Config parse_config(int argc, char *argv[])
     cfg.a               = 1;
     cfg.alpha           = 1.0;
     cfg.K               = 10.0;
-    cfg.K_rnap          = 500.0;
+    cfg.K_rnap          = 50.0;
     cfg.K_bend          = 0.0;
-    cfg.Delta           = 1e-4;
+    cfg.Delta           = 1e-3;
     cfg.epsilon         = 0.0024;
     cfg.epsilon_rnap    = 0.0024;
     cfg.sigma           = 1.1*cfg.a;
@@ -111,13 +111,13 @@ Config parse_config(int argc, char *argv[])
 
     // print_header("Durées et périodicitéss");
 
-    int N_rec = 1e3; 
+    int N_rec = 100000; 
     int k;
 
     if(cfg.nb_rnap_initial == 0)
     {
-        // cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
-        cfg.T = 1e6;
+        cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
+        // cfg.T = 100000;
         cfg.T_eq = cfg.T/10;
 
         k = (cfg.T + N_rec - 1) / N_rec; 
@@ -148,7 +148,7 @@ Config parse_config(int argc, char *argv[])
         cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
         cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
         
-    
+        cfg.periode_lammps = cfg.T / 1000; 
         cfg.periode_centre_de_masse = cfg.T;       // cdm
         cfg.periode_voisin = cfg.T;       // voisins
         cfg.periode_force = cfg.T;       // force

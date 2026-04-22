@@ -90,6 +90,15 @@ typedef struct {
     int *links;
     int n_links;
 
+    // Forces chromatine
+    double (*F_chrom)[3];   // forces accumulées chromatine [N][3]
+
+    // Forces RNAP
+
+    double (*F_rnap)[3]; // forces pour 1 rnap [rnap_subunits][3]
+    double (*F_chrom_rnap)[3]; // réaction sur la chromatine venant des rnap [N][3]
+    double (*(*F_rnap_all))[3];  // tableau de pointeurs vers [nsub][3]
+
 
     
 } SimVars;

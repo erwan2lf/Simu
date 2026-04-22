@@ -109,6 +109,7 @@ typedef struct {
 
     // --- périodes d'enregistrement
     int periode_enregistrement;
+    int periode_lammps;
     int periode_msd;
     int periode_correlation;
     int periode_endtoend;

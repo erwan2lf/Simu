@@ -38,7 +38,7 @@ void plot_columns_from_file(const char *filename, const char *title, const char 
 double calculate_angle(double *vec1, double *vec2);
 void update_link_vectors(double **r_new, double **t_link, int N);
 bool is_allocated(void *ptr);
-void compteur_grands_deplacements(int N, int T, double **R, double **r_new, int compteur);
+void compteur_grands_deplacements(int N, int T, double **R, double **r_new, int *compteur);
 double calculate_mean_for_correlation(double **R, int i, int j);
 void create_histogram(double *data, int data_size, int *bins, int bin_count, double min_value, double max_value);
 int find_nearest_particles(double **R, int N, int particle);

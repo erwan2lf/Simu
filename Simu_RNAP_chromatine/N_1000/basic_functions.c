@@ -686,15 +686,12 @@ void update_link_vectors(double **r_new,double **t_link, int N){
     }
 }
 
-void compteur_grands_deplacements(int N, int T, double **R, double **r_new, int compteur){
-    compteur = 0;
-    for(int i = 0; i < 0; i++){
+void compteur_grands_deplacements(int N, int T, double **R, double **r_new, int *compteur){
+    for(int i = 0; i < N; i++){
         if(distance(R[i], r_new[i]) > 0.1){
-            compteur++;
+            (*compteur)++;
         }
-        
-    }
-    
+    } 
 }
 
 void create_histogram(double *data, int data_size, int *bins, int bin_count, double min_value, double max_value){

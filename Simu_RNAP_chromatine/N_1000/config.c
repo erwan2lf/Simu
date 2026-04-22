@@ -63,7 +63,7 @@ Config parse_config(int argc, char *argv[])
     cfg.rayon_ecrantage_LJ_rnap  = 1.0;
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
-    cfg.r_conf = 10.77;
+    cfg.r_conf = 10000;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
 
@@ -116,9 +116,8 @@ Config parse_config(int argc, char *argv[])
 
     if(cfg.nb_rnap_initial == 0)
     {
-        printf("ALLO ");
         // cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
-        cfg.T = 1e5;
+        cfg.T = 1e6;
         cfg.T_eq = cfg.T/10;
 
         k = (cfg.T + N_rec - 1) / N_rec; 

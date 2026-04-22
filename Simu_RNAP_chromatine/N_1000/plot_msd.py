@@ -66,7 +66,7 @@ def main():
     err  = msd_std[mask]
 
     # --- Tronquer à T/4 ---
-    n_valid = len(t) // 4
+    n_valid = len(t)
     t   = t[:n_valid]
     msd = msd[:n_valid]
     err = err[:n_valid]
@@ -154,7 +154,7 @@ def main():
 
     # ── Panneau droit : régime précoce linéaire ───────────────────────────────
     ax2 = axes[1]
-    n_show = max(len(t) // 10, 2)
+    n_show = max(len(t) // 4, 2)
 
     ax2.plot(t[:n_show], msd[:n_show], color='steelblue', lw=1.5,
              label='MSD moyen')
@@ -163,14 +163,14 @@ def main():
                      msd[:n_show] + err[:n_show],
                      alpha=0.2, color='steelblue', label='± std')
 
-    # Référence libre
-    t_lin = np.linspace(0, t[n_show - 1], 300)
-    ax2.plot(t_lin, 6.0 * D_FREE * t_lin,
-             color='orange', lw=1.5, ls='-.',
-             label=f'MSD = 6DΔτ (libre, D={D_FREE:.0e})')
-    ax2.plot(t_lin, 6.0 * D_eff * D_FREE * t_lin,
-             color='red', lw=1.2, ls=':',
-             label=f'MSD = 6D_eff·Δτ (D_eff={D_eff:.3f})')
+    # # Référence libre
+    # t_lin = np.linspace(0, t[n_show - 1], 300)
+    # ax2.plot(t_lin, 6.0 * D_FREE * t_lin,
+    #          color='orange', lw=1.5, ls='-.',
+    #          label=f'MSD = 6DΔτ (libre, D={D_FREE:.0e})')
+    # ax2.plot(t_lin, 6.0 * D_eff * D_FREE * t_lin,
+    #          color='red', lw=1.2, ls=':',
+    #          label=f'MSD = 6D_eff·Δτ (D_eff={D_eff:.3f})')
 
     ax2.set_xlabel('Lag τ [pas de temps]', fontsize=12)
     ax2.set_ylabel('MSD [a²]', fontsize=12)

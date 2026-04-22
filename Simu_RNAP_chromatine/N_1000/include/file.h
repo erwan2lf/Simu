@@ -37,5 +37,4 @@ typedef struct {
 void open_simulation_files(const Config *cfg, Files *f);
 void close_simulation_files(const Config *cfg, Files *f);
 
-
-#endif 
+#endif

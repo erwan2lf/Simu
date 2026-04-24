@@ -48,9 +48,9 @@ Config parse_config(int argc, char *argv[])
     cfg.a               = 1;
     cfg.alpha           = 1.0;
     cfg.K               = 10.0;
-    cfg.K_rnap          = 50.0;
+    cfg.K_rnap          = 10.0;
     cfg.K_bend          = 0.0;
-    cfg.Delta           = 1e-3;
+    cfg.Delta           = 1e-2;
     cfg.epsilon         = 0.0024;
     cfg.epsilon_rnap    = 0.0024;
     cfg.sigma           = 1.1*cfg.a;
@@ -127,16 +127,36 @@ Config parse_config(int argc, char *argv[])
         cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
         cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
 
+        cfg.periode_lammps = cfg.T / 10000; 
+        printf("periode lammps = %d \n", cfg.periode_lammps);
         cfg.periode_centre_de_masse = cfg.T;       // cdm
         cfg.periode_voisin = cfg.T;       // voisins
         cfg.periode_force = cfg.T;       // force
     }
     else
     {
-        cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (cfg.nb_rnap_initial)) / (cfg.vitesse_rnap * cfg.Delta) );
-        printf("T0 = %d\n", cfg.T);
-        cfg.T = cfg.T + cfg.T/10;
-        printf("T1 = %d\n", cfg.T);
+        // Temps pour que la dernière RNAP finisse
+        int T_transcription = (int)round(
+            (double)(cfg.fin_segment - cfg.debut_segment) / (cfg.vitesse_rnap * cfg.Delta)
+        );
+
+        // Temps d'entrée de la dernière RNAP
+        int T_entree_derniere = (int)round(
+            (double)(cfg.nb_rnap_initial - 1) * cfg.ecart_train / (cfg.vitesse_rnap * cfg.Delta)
+        );
+
+        // T_train = temps où le train est présent = T_entree_derniere + T_transcription
+        int T_train = T_entree_derniere + T_transcription;
+
+        // On veut que T_train = 90% de T_total
+        // donc T_total = T_train / 0.9
+        cfg.T = (int)round(T_train / 0.9);
+
+        printf("T_transcription_1_rnap = %d\n", T_transcription);
+        printf("T_entree_derniere_rnap = %d\n", T_entree_derniere);
+        printf("T_train = %d\n", T_train);
+        printf("T_total = %d\n", cfg.T);
+
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.T =  k * N_rec;
         cfg.T_eq = cfg.T/10;
@@ -149,6 +169,7 @@ Config parse_config(int argc, char *argv[])
         cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
         
         cfg.periode_lammps = cfg.T / 1000; 
+        printf("periode lammps = %d \n", cfg.periode_lammps);
         cfg.periode_centre_de_masse = cfg.T;       // cdm
         cfg.periode_voisin = cfg.T;       // voisins
         cfg.periode_force = cfg.T;       // force

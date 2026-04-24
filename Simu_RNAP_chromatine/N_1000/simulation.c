@@ -840,14 +840,14 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                     // ── Ressort anneau ──────────────────────────────────────────
                     TIMER_START(sec_w0, sec_c0);
                     accumulate_ring_forces(sv->R_rnap[rnap], sv->F_rnap,
-                                        cfg->K_rnap, 0.5 * cfg->alpha,
+                                        cfg->K_rnap, cfg->alpha,
                                         cfg->rnap_subunits);
                     TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_RING_FORCE]);
 
                     // ── Liaisons diagonales ─────────────────────────────────────
                     TIMER_START(sec_w0, sec_c0);
                     accumulate_diagonal_forces(sv->R_rnap[rnap], sv->F_rnap,
-                                            2 * cfg->K_rnap, cfg->a_transpt,
+                                            cfg->K_rnap, cfg->a_transpt,
                                             cfg->rnap_subunits);
                     TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LIAISON_SUP]);
                     // Après accumulate_diagonal_forces
@@ -893,7 +893,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                     sv->F_rnap[s][1] += sv->F_rnap_all[rnap][s][1];
                     sv->F_rnap[s][2] += sv->F_rnap_all[rnap][s][2];
                 }
-                
+
                 // ── Mise à jour Euler-Maruyama RNAP ─────────────────────────────
                 euler_maruyama_update_flat(sv->R_rnap[rnap], sv->F_rnap,
                                         cfg->rnap_subunits, cfg->Delta,
@@ -928,12 +928,12 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         // --------------------------------------------------------------
         TIMER_START(sec_w0, sec_c0);
         accumulate_lj_forces(sv->R, sv->F_chrom, neighbor_lists, cfg->N,
-                     cfg->epsilon, cfg->sigma6, cfg->sigma12,
-                     cfg->attache);
-        // lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
-        //                      cfg->sigma6, cfg->sigma12, cfg->Delta,
-        //                      cfg->attache, cfg->periode_force,
-        //                      f->fichier_force_LJ, t);
+                    0.001 * cfg->epsilon, cfg->sigma6, cfg->sigma12,
+                    cfg->attache);
+        // // lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
+        // //                      cfg->sigma6, cfg->sigma12, cfg->Delta,
+        // //                      cfg->attache, cfg->periode_force,
+        // //                      f->fichier_force_LJ, t);
         TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ]);
 
         // TIMER_START(sec_w0, sec_c0);

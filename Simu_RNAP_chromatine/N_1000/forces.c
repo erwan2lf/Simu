@@ -23,7 +23,8 @@ void accumulate_spring_forces(double **R, double (*F)[3],
         if (r2 <= eps2) continue;
 
         double r    = sqrt(r2);
-        double coef = K * (1.0 - 1.0 / r);
+        // double coef = K * (1.0 - 1.0 / r);
+        double coef = K * (r - 1.0) / r;
 
         F[i][0]   += coef * dx;
         F[i][1]   += coef * dy;
@@ -52,6 +53,7 @@ void accumulate_lj_forces(double **R, double (*F)[3],
 
         for (int k = 0; k < neighbor_lists[i].count; k++) {
             int j = neighbor_lists[i].neighbors[k];
+            if (j <= i) continue;
             double *Rj = R[j];
 
             double dx = Ri[0] - Rj[0];
@@ -147,7 +149,8 @@ void accumulate_ring_forces(double **R_rnap, double (*F_rnap)[3],
         if (r2 <= eps2) continue;
 
         double r    = sqrt(r2);
-        double coef = K_rnap * (1.0 - alpha / r);
+        // double coef = K_rnap * (1.0 - alpha / r);
+        double coef = K_rnap * (r - 1.0) / r;
 
         F_rnap[i][0]      += coef * dx;
         F_rnap[i][1]      += coef * dy;
@@ -184,7 +187,8 @@ void accumulate_diagonal_forces(double **R_rnap, double (*F_rnap)[3],
         if (r2 <= eps2) continue;
 
         double r    = sqrt(r2);
-        double coef = 2.0 * K_rnap * (1.0 - l0 / r);
+        // double coef = 2.0 * K_rnap * (1.0 - l0 / r);
+        double coef = 2.0 * K_rnap * (r - 1.0) / r;
 
         F_rnap[i][0] += coef * dx;
         F_rnap[i][1] += coef * dy;
@@ -328,7 +332,7 @@ void accumulate_lj_rnap_rnap(const Config *cfg,
     const double fmax_inter = 1000.0;
     const double fmax_intra = 300.0;
 
-    const double c12_inter = 48.0 * 100.0 * epsilon * sigma12;
+    const double c12_inter = 48.0 * epsilon * sigma12;
     const double c6_inter  = 24.0 * epsilon * sigma6;
 
     const double c12_intra = 4.0 * 12.0 * 1.5 * epsilon * sigma12;

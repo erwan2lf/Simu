@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=c9.86_10r
+#SBATCH --job-name=msd003
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=50
-#SBATCH --mem=5G
-#SBATCH -t 48:00:00
-#SBATCH -p amd32
+#SBATCH --mem=20G
+#SBATCH -t 10:00:00
+#SBATCH -p amd-volta
 
 echo "======== SLURM SIMULATION LAUNCH ========"
 echo "Job ID: $SLURM_JOB_ID"
@@ -38,6 +38,7 @@ gcc -g -O3 -ffast-math -DCLUSTER \
     mt19937ar.c \
     traj_binary.c \
     msd.c \
+    forces.c \
     -Iinclude \
     -I${FFTW_DIR}/include \
     -L${FFTW_DIR}/lib \
@@ -62,7 +63,7 @@ chmod +x main
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
 MAX_PARALLEL=50
 
-echo "🖥️  Threads OpenMP         : $OMP_NUM_THREADS"
+echo "🖥️   Threads OpenMP         : $OMP_NUM_THREADS"
 echo "⚙️  Jobs en parallèle (bg)  : $MAX_PARALLEL"
 
 # =============================
@@ -71,8 +72,8 @@ echo "⚙️  Jobs en parallèle (bg)  : $MAX_PARALLEL"
 parent_folder="$SLURM_SUBMIT_DIR/Simulations"
 mkdir -p "$parent_folder"
 
-nb_rnap_values=(10)
-vitesse_rnap_values=(0.1)
+nb_rnap_values=(0)
+vitesse_rnap_values=(0.03)
 Ktranspt_values=(2)
 seeds=({1..50})
 

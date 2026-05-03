@@ -12,7 +12,6 @@
  * Structures internes
  * ============================================================ */
 
-/* Header lu depuis le fichier .bin */
 typedef struct {
     int32_t magic;
     int32_t version;
@@ -57,11 +56,10 @@ static int read_header(FILE *f, BinHeader *h)
  * ============================================================ */
 static int count_frames(FILE *f, const BinHeader *h)
 {
-    /* Taille d'une frame en octets */
     long frame_bytes =
-        sizeof(int32_t)                                              /* timestep */
-        + (long)h->N_segment * 3 * sizeof(float)                    /* chromatine */
-        + (long)h->nb_rnap * h->rnap_subunits * 3 * sizeof(float);  /* RNAP */
+        sizeof(int32_t)
+        + (long)h->N_segment * 3 * sizeof(float)
+        + (long)h->nb_rnap * h->rnap_subunits * 3 * sizeof(float);
 
     long pos_start = ftell(f);
     fseek(f, 0, SEEK_END);
@@ -78,68 +76,107 @@ static int count_frames(FILE *f, const BinHeader *h)
 }
 
 /* ============================================================
- * Lecture de toutes les trajectoires d'un monomère donné
+ * Lecture SÉQUENTIELLE de toutes les trajectoires
  *
- * Retourne un tableau [n_frames][3] alloué par la fonction.
- * Le appelant doit le libérer avec free().
+ * Lit le fichier UNE SEULE FOIS de début à fin — pas de fseek.
+ * Retourne traj[mono][frame][3] alloué par la fonction.
+ *
+ * RAM : nseg × n_frames × 3 × sizeof(float)
+ *       Pour nseg=100, n_frames=100000 : ~115 Mo
  * ============================================================ */
-static float (*read_monomer_traj(FILE *f, const BinHeader *h,
-                                 int n_frames, int local_idx,
-                                 long pos_data_start))[3]
+static float ***read_all_trajs_sequential(FILE *f, const BinHeader *h,
+                                          int n_frames)
 {
-    long frame_bytes =
-        sizeof(int32_t)
-        + (long)h->N_segment * 3 * sizeof(float)
-        + (long)h->nb_rnap * h->rnap_subunits * 3 * sizeof(float);
+    int  nseg      = h->N_segment;
+    long rnap_bytes = (long)h->nb_rnap * h->rnap_subunits * 3 * sizeof(float);
 
-    long mono_offset =
-        sizeof(int32_t)
-        + (long)local_idx * 3 * sizeof(float);
-
-    float (*traj)[3] = malloc((size_t)n_frames * sizeof(*traj));
+    /* Allocation traj[mono][frame][3] */
+    float ***traj = malloc((size_t)nseg * sizeof(float **));
     if (!traj) { perror("malloc traj"); return NULL; }
 
-    for (int fr = 0; fr < n_frames; fr++) {
-        long pos = pos_data_start
-                 + (long)fr * frame_bytes
-                 + mono_offset;
-
-        if (fseek(f, pos, SEEK_SET) != 0) {
-            fprintf(stderr, "❌ fseek échoué frame %d mono %d\n", fr, local_idx);
-            free(traj);
-            return NULL;
-        }
-
-        size_t n_read = fread(traj[fr], sizeof(float), 3, f);
-        if (n_read != 3) {
-            fprintf(stderr, "❌ fread frame %d mono %d : lu %zu/3 floats "
-                            "(pos=%ld frame_bytes=%ld)\n",
-                    fr, local_idx, n_read, pos, frame_bytes);
-            free(traj);
-            return NULL;
+    for (int i = 0; i < nseg; i++) {
+        traj[i] = malloc((size_t)n_frames * sizeof(float *));
+        if (!traj[i]) { perror("malloc traj[i]"); goto error; }
+        for (int fr = 0; fr < n_frames; fr++) {
+            traj[i][fr] = malloc(3 * sizeof(float));
+            if (!traj[i][fr]) { perror("malloc traj[i][fr]"); goto error; }
         }
     }
 
+    /* Buffer pour absorber les données RNAP qu'on ignore */
+    float *rnap_buf = (rnap_bytes > 0) ? malloc(rnap_bytes) : NULL;
+
+    /* Lecture séquentielle — UNE frame à la fois, sans fseek */
+    for (int fr = 0; fr < n_frames; fr++) {
+
+        /* Timestep — ignoré */
+        int32_t ts;
+        if (fread(&ts, sizeof(int32_t), 1, f) != 1) {
+            fprintf(stderr, "❌ fread timestep frame %d\n", fr);
+            free(rnap_buf);
+            goto error;
+        }
+
+        /* Positions chromatine — stockées */
+        for (int i = 0; i < nseg; i++) {
+            if (fread(traj[i][fr], sizeof(float), 3, f) != 3) {
+                fprintf(stderr, "❌ fread chrom frame %d mono %d\n", fr, i);
+                free(rnap_buf);
+                goto error;
+            }
+        }
+
+        /* Positions RNAP — ignorées */
+        if (rnap_bytes > 0) {
+            if (fread(rnap_buf, 1, rnap_bytes, f) != (size_t)rnap_bytes) {
+                fprintf(stderr, "❌ fread rnap frame %d\n", fr);
+                free(rnap_buf);
+                goto error;
+            }
+        }
+
+        if (fr % 10000 == 0)
+            printf("   lecture frame %d/%d\n", fr, n_frames);
+    }
+
+    free(rnap_buf);
     return traj;
+
+error:
+    for (int i = 0; i < nseg; i++) {
+        if (!traj[i]) break;
+        for (int fr = 0; fr < n_frames; fr++)
+            free(traj[i][fr]);
+        free(traj[i]);
+    }
+    free(traj);
+    return NULL;
+}
+
+/* ============================================================
+ * Libération des trajectoires
+ * ============================================================ */
+static void free_all_trajs(float ***traj, int nseg, int n_frames)
+{
+    if (!traj) return;
+    for (int i = 0; i < nseg; i++) {
+        if (!traj[i]) continue;
+        for (int fr = 0; fr < n_frames; fr++)
+            free(traj[i][fr]);
+        free(traj[i]);
+    }
+    free(traj);
 }
 
 /* ============================================================
  * Calcul du MSD d'une trajectoire 1D via FFT
  * (algorithme de Calandrini / Kneller, O(T log T))
- *
- *  x       : signal de longueur n
- *  msd_out : tableau de longueur n_lags, déjà alloué
- *  count   : tableau de longueur n_lags (accumulation du nb de termes)
- *
- * MSD(m) = S1(m) - 2 * S2(m)
- *   S2(m) = Re[ IFFT( |FFT(x)|² ) ] / n   (autocorrélation via FFT)
- *   S1(m) = somme cumulative de x²
  * ============================================================ */
 static void msd_1d_fft(const double *x, int n, int n_lags,
                        double *msd_out, long *count)
 {
     int nfft = 1;
-    while (nfft < 2 * n) nfft <<= 1;   /* zero-padding pour autocorrélation */
+    while (nfft < 2 * n) nfft <<= 1;
 
     fftw_complex *in  = fftw_alloc_complex(nfft);
     fftw_complex *out = fftw_alloc_complex(nfft);
@@ -147,11 +184,9 @@ static void msd_1d_fft(const double *x, int n, int n_lags,
     fftw_plan plan_fwd = fftw_plan_dft_1d(nfft, in, out, FFTW_FORWARD,  FFTW_ESTIMATE);
     fftw_plan plan_inv = fftw_plan_dft_1d(nfft, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
 
-    /* Remplissage avec zero-padding */
     for (int i = 0;  i < n;    i++) { in[i][0] = x[i]; in[i][1] = 0.0; }
     for (int i = n; i < nfft; i++) { in[i][0] = 0.0;  in[i][1] = 0.0; }
 
-    /* FFT → |FFT|² → IFFT = autocorrélation */
     fftw_execute(plan_fwd);
     for (int i = 0; i < nfft; i++) {
         double re = out[i][0], im = out[i][1];
@@ -160,13 +195,10 @@ static void msd_1d_fft(const double *x, int n, int n_lags,
     }
     fftw_execute(plan_inv);
 
-    /* S2(m) = autocorrélation normalisée */
     double *S2 = malloc((size_t)n * sizeof(double));
     for (int m = 0; m < n; m++)
         S2[m] = in[m][0] / (double)nfft;
 
-    /* S1 : somme cumulative de x[t]² + x[t+m]²
-     * Calcul récursif : S1(m) = S1(m-1) - x[m-1]² - x[n-m]² */
     double S1 = 0.0;
     for (int i = 0; i < n; i++) S1 += 2.0 * x[i] * x[i];
 
@@ -189,20 +221,18 @@ static void msd_1d_fft(const double *x, int n, int n_lags,
 }
 
 /* ============================================================
- * msd_compute_from_file  — point d'entrée public
+ * msd_compute_from_file — point d'entrée public
  * ============================================================ */
 int msd_compute_from_file(const char *bin_path,
                           const char *out_path,
                           int         n_lags)
 {
-    /* --- Ouverture du fichier binaire --- */
     FILE *f = fopen(bin_path, "rb");
     if (!f) {
         fprintf(stderr, "❌ msd: impossible d'ouvrir '%s'\n", bin_path);
         return -1;
     }
 
-    /* --- Lecture du header --- */
     BinHeader h;
     if (read_header(f, &h) != 0) { fclose(f); return -1; }
 
@@ -212,7 +242,6 @@ int msd_compute_from_file(const char *bin_path,
     printf("   nb_rnap=%d  nsub=%d  Delta=%.2e  periode=%d\n",
            h.nb_rnap, h.rnap_subunits, h.Delta, h.periode);
 
-    /* --- Comptage des frames --- */
     int n_frames = count_frames(f, &h);
     if (n_frames <= 0) {
         fprintf(stderr, "❌ msd: aucune frame dans le fichier\n");
@@ -220,84 +249,72 @@ int msd_compute_from_file(const char *bin_path,
         return -1;
     }
 
-    /* Clamp n_lags */
     if (n_lags <= 0 || n_lags > n_frames)
         n_lags = n_frames;
 
-    printf("   n_frames=%d  n_lags=%d\n\n", n_frames, n_lags);
+    printf("   n_frames=%d  n_lags=%d\n", n_frames, n_lags);
 
-    /* Temps réel entre deux frames */
-    // double dt_frame = h.Delta * (double)h.periode; // en τ₀
-    double dt_frame = (double)h.periode; // en timestep
+    double dt_frame = (double)h.periode;
+    int    nseg     = h.N_segment;
 
-    /* --- Allocation des accumulateurs ---
-     * msd_per_mono[i][m] : MSD du monomère i au lag m
-     * msd_mean[m]        : moyenne sur les monomères
-     * msd_std[m]         : écart-type sur les monomères */
-    int  nseg = h.N_segment;
+    double ram_mb = (double)nseg * n_frames * 3 * sizeof(float) / (1024.0 * 1024.0);
+    printf("   RAM trajectoires : %.1f Mo\n\n", ram_mb);
 
+    /* ── Lecture séquentielle — UN SEUL PASSAGE dans le fichier ─── */
+    printf("📖 Lecture séquentielle...\n");
+    float ***traj = read_all_trajs_sequential(f, &h, n_frames);
+    fclose(f);
+
+    if (!traj) {
+        fprintf(stderr, "❌ msd: échec lecture\n");
+        return -1;
+    }
+    printf("✅ Lecture terminée.\n\n");
+
+    /* ── Allocation accumulateurs ────────────────────────────────── */
     double **msd_per_mono = malloc((size_t)nseg * sizeof(double *));
     long   **count_mono   = malloc((size_t)nseg * sizeof(long *));
     for (int i = 0; i < nseg; i++) {
         msd_per_mono[i] = calloc((size_t)n_lags, sizeof(double));
         count_mono[i]   = calloc((size_t)n_lags, sizeof(long));
         if (!msd_per_mono[i] || !count_mono[i]) {
-            perror("calloc msd_per_mono");
-            fclose(f);
+            perror("calloc");
+            free_all_trajs(traj, nseg, n_frames);
             return -1;
         }
     }
 
-    long pos_data_start = ftell(f);
-    printf("   pos_data_start = %ld\n", pos_data_start); // debug
-
-
-    /* --- Boucle sur les monomères du segment --- */
-    printf("⏳ Calcul MSD en cours...\n");
-
+    /* ── Calcul MSD ──────────────────────────────────────────────── */
+    printf("⏳ Calcul MSD...\n");
     double *x = malloc((size_t)n_frames * sizeof(double));
-    if (!x) { perror("malloc x"); fclose(f); return -1; }
+    if (!x) { perror("malloc x"); free_all_trajs(traj, nseg, n_frames); return -1; }
 
     for (int i = 0; i < nseg; i++) {
-
         if (i % 10 == 0)
             printf("   monomère %d/%d\n", h.debut_segment + i, h.fin_segment);
 
-        /* Lecture de la trajectoire du monomère i */
-        float (*traj)[3] = read_monomer_traj(f, &h, n_frames, i, pos_data_start);
-        if (!traj) { free(x); fclose(f); return -1; }
-
-        /* MSD sur chaque dimension puis somme */
         for (int dim = 0; dim < 3; dim++) {
             for (int fr = 0; fr < n_frames; fr++)
-                x[fr] = (double)traj[fr][dim];
-
-            msd_1d_fft(x, n_frames, n_lags,
-                       msd_per_mono[i], count_mono[i]);
+                x[fr] = (double)traj[i][fr][dim];
+            msd_1d_fft(x, n_frames, n_lags, msd_per_mono[i], count_mono[i]);
         }
-
-        free(traj);
     }
     free(x);
-    fclose(f);
+    free_all_trajs(traj, nseg, n_frames);
 
-    /* --- Calcul moyenne et écart-type sur les monomères --- */
+    /* ── Moyenne et écart-type ───────────────────────────────────── */
     double *msd_mean = calloc((size_t)n_lags, sizeof(double));
     double *msd_std  = calloc((size_t)n_lags, sizeof(double));
 
     for (int m = 0; m < n_lags; m++) {
-        /* Normalise chaque monomère (3 dimensions déjà sommées) */
-        for (int i = 0; i < nseg; i++) {
+        for (int i = 0; i < nseg; i++)
             if (count_mono[i][m] > 0)
                 msd_per_mono[i][m] /= (double)count_mono[i][m];
-        }
 
-        /* Moyenne */
         double sum = 0.0;
         for (int i = 0; i < nseg; i++) sum += msd_per_mono[i][m];
         msd_mean[m] = sum / (double)nseg;
 
-        /* Écart-type */
         double sum2 = 0.0;
         for (int i = 0; i < nseg; i++) {
             double d = msd_per_mono[i][m] - msd_mean[m];
@@ -306,10 +323,10 @@ int msd_compute_from_file(const char *bin_path,
         msd_std[m] = sqrt(sum2 / (double)nseg);
     }
 
-    /* --- Écriture du fichier de sortie --- */
+    /* ── Écriture ────────────────────────────────────────────────── */
     FILE *fout = fopen(out_path, "w");
     if (!fout) {
-        fprintf(stderr, "❌ msd: impossible d'ouvrir '%s' en écriture\n", out_path);
+        fprintf(stderr, "❌ msd: impossible d'ouvrir '%s'\n", out_path);
         return -1;
     }
 
@@ -328,7 +345,7 @@ int msd_compute_from_file(const char *bin_path,
     fclose(fout);
     printf("✅ MSD écrit dans '%s'\n", out_path);
 
-    /* --- Libération mémoire --- */
+    /* ── Libération ──────────────────────────────────────────────── */
     for (int i = 0; i < nseg; i++) {
         free(msd_per_mono[i]);
         free(count_mono[i]);

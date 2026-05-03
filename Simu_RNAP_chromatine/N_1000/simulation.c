@@ -329,14 +329,14 @@ void ajouter_rnap(SimVars *sv, const Config *cfg,
     // --- Mise à jour des neighbors ---
     build_neighbor_list(sv->R, neighbor_list, cfg->N, 2, 0);
     if (cfg->nb_rnap_initial > 0) {
-        resize_neighbor_list_rnap(&neighbor_lists_rnap,
-                                  sv->nb_rnap - 1,
-                                  sv->nb_rnap,
-                                  cfg->rnap_subunits,
-                                  t);
-        *p_neighbor_lists_rnap = neighbor_lists_rnap;
+        // resize_neighbor_list_rnap(&neighbor_lists_rnap,
+        //                           sv->nb_rnap - 1,
+        //                           sv->nb_rnap,
+        //                           cfg->rnap_subunits,
+        //                           t);
+        // *p_neighbor_lists_rnap = neighbor_lists_rnap;
         build_neighbor_list_rnap_chrom(
-            cfg, sv->R_rnap, sv->nb_rnap, sv->R,
+            cfg, sv->R_rnap, MAX_RNAP, sv->R,
             cfg->N, neighbor_lists_rnap, cfg->rayon_ecrantage_LJ_chrom, t
         );
     }
@@ -409,7 +409,7 @@ void retirer_rnap(SimVars *sv, const Config *cfg,
     NeighborList_rnap **lists = *p_lists;
     if (nb_actives > 0) {
         build_neighbor_list_rnap_chrom(
-            cfg, sv->R_rnap, nb_actives, sv->R,
+            cfg, sv->R_rnap, MAX_RNAP, sv->R,
             cfg->N, lists, cfg->rayon_ecrantage_LJ_chrom, t
         );
         printf(C_GREEN "   🔁 Reconstruction des neighbor lists (%d actives)\n" C_RESET, nb_actives);
@@ -1210,68 +1210,6 @@ void save_checkpoint(SimVars *sv, const Config *cfg, int t)
 }
 
 
-#define CHECKPOINT_FILE "./Resultats/checkpoint_last.dat"
-
-int load_checkpoint_metadata(Config *cfg, int *t_start)
-{
-    FILE *f = fopen("./Resultats/checkpoint_last.dat", "rb");
-    if (!f) return 0;
-
-    // L'ordre doit matcher EXACTEMENT save_checkpoint()
-
-    fread(t_start, sizeof(int), 1, f);     // ✅ lis t
-    // fread(&cfg->nb_rnap_initial, sizeof(int), 1, f);  // ✅ lis nb_rnap (ne l'ignore pas)
-
-    fclose(f);
-    return 1;
-}
-
-
-int load_checkpoint_data(SimVars *sv, Config *cfg, int *t_start)
-{
-    FILE *f = fopen(CHECKPOINT_FILE, "rb");
-    if (!f)
-        return 0;
-
-    // Lire t_start et cfg sauvegardée
-    fread(t_start, sizeof(int), 1, f);
-    fread(&sv->nb_rnap, sizeof(int), 1, f);
-
-    // POLYMERE
-
-    for (int i = 0; i < cfg->N; i++)
-        fread(sv->R[i], sizeof(double), 3, f);
-    
-
-    // RNAP matrices
-    for (int i = 0; i < MAX_RNAP; i++)
-        for (int j = 0; j < cfg->rnap_subunits; j++)
-            for (int k = 0; k < 3; k++)
-                fread(&sv->R_rnap[i][j][k], sizeof(double), 1, f);
-
-    // RNAP tableaux 1D
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->l_rnap[i], sizeof(int), 1, f);
-
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->positions_bille_rnap[i], sizeof(int), 1, f);
-    
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->avancement_transcription[i], sizeof(double), 1, f);
-
-    for (int i = 0; i < MAX_RNAP; i++)
-        fread(&sv->compteur_mono_rnap[i], sizeof(int), 1, f);
-
-    // RNG
-    unsigned long state[624];
-    int index;
-    fread(state, sizeof(state), 1, f);
-    fread(&index, sizeof(int), 1, f);
-    set_mt_state(state, index);
-
-    fclose(f);
-    return 1;
-}
 
 void confinement_sphere(const Config *cfg, SimVars *sv, int t)
 {

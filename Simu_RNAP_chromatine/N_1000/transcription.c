@@ -679,7 +679,8 @@ void simu_LJ_RNAP_erwan(const Config *cfg, SimVars *sv, const Files *f, int t_st
     double **R_new = sv->R_new;
 
     // --- Allocation des neighbor lists (particules + RNAP) ---
-    NeighborList_rnap **neighbor_lists_rnap = allocate_neighbor_list_rnap(sv->nb_rnap, cfg->rnap_subunits);
+    // NeighborList_rnap **neighbor_lists_rnap = allocate_neighbor_list_rnap(sv->nb_rnap, cfg->rnap_subunits);
+    NeighborList_rnap **neighbor_lists_rnap = allocate_neighbor_list_rnap(MAX_RNAP, cfg->rnap_subunits);
     NeighborList *neighbor_lists = malloc(cfg->N * sizeof(NeighborList));
 
     if (!neighbor_lists) {

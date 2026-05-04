@@ -3,7 +3,7 @@
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=50
-#SBATCH --mem=20G
+#SBATCH --mem=5G
 #SBATCH -t 48:00:00
 #SBATCH -p amd32
 
@@ -23,6 +23,8 @@ module load fftw/3.3.8
 # Compilation du code
 # =============================
 echo "📦 Compilation du code..."
+
+rm -f main *.o
 
 gcc -g -O3 -ffast-math -DCLUSTER \
     main.c \
@@ -75,6 +77,8 @@ mkdir -p "$parent_folder"
 nb_rnap_values=(50)
 vitesse_rnap_values=(0.01)
 Ktranspt_values=(2)
+Delta_values=(1e-4)
+gamma_fric_values=(1)
 seeds=({1..50})
 
 # =============================
@@ -86,16 +90,18 @@ run_one_simulation() {
   local vitesse="$3"
   local Ktranspt="$4"
   local seed="$5"
+  local Delta="$6"
+  local gamma_fric="$7"
 
   cd "$sim_dir" || exit 1
 
-  echo "▶ Simulation : nb_rnap=$nb_rnap | vitesse=$vitesse | K=$Ktranspt | seed=$seed"
+  echo "▶ Simulation : nb_rnap=$nb_rnap | vitesse=$vitesse | K=$Ktranspt | seed=$seed | Delta=$Delta | gamma=$gamma_fric"
   echo ">> $(date +"[%H:%M:%S]") Lancement main" | tee -a output.txt
 
-  "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" \
+  "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" "$Delta" "$gamma_fric" \
       >> output.txt 2>> error.txt
 
-  # --- Vérification que le binaire de trajectoire existe ---
+  # --- Vérification trajectoire.bin ---
   if [ -f "Resultats/trajectoire.bin" ]; then
       echo "✅ trajectoire.bin présent ($(du -sh Resultats/trajectoire.bin | cut -f1))" \
           | tee -a output.txt
@@ -103,7 +109,7 @@ run_one_simulation() {
       echo "⚠️  trajectoire.bin absent" | tee -a output.txt
   fi
 
-  # --- Vérification que le MSD a été calculé ---
+  # --- Vérification msd.txt ---
   if [ -f "Resultats/msd.txt" ]; then
       n_lines=$(grep -c "^[^#]" Resultats/msd.txt 2>/dev/null || echo "?")
       echo "✅ msd.txt présent ($n_lines lags)" | tee -a output.txt
@@ -127,22 +133,29 @@ for nb_rnap in "${nb_rnap_values[@]}"; do
 
   for vitesse in "${vitesse_rnap_values[@]}"; do
     for Ktranspt in "${Ktranspt_values[@]}"; do
-      k_folder="$nb_rnap_folder/vitesse_${vitesse}/Ktranspt_${Ktranspt}"
-      mkdir -p "$k_folder"
+      for Delta in "${Delta_values[@]}"; do
+        for gamma_fric in "${gamma_fric_values[@]}"; do
 
-      for seed in "${seeds[@]}"; do
-        sim_dir="$k_folder/simulation_seed_${seed}"
-        mkdir -p "$sim_dir"
+          # Dossier incluant Delta et gamma_fric
+          k_folder="$nb_rnap_folder/vitesse_${vitesse}/Ktranspt_${Ktranspt}/Delta_${Delta}/gamma_${gamma_fric}"
+          mkdir -p "$k_folder"
 
-        (
-          run_one_simulation "$sim_dir" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed"
-        ) &
+          for seed in "${seeds[@]}"; do
+            sim_dir="$k_folder/simulation_seed_${seed}"
+            mkdir -p "$sim_dir"
 
-        ((running++))
-        if (( running >= MAX_PARALLEL )); then
-          wait
-          running=0
-        fi
+            (
+              run_one_simulation "$sim_dir" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" "$Delta" "$gamma_fric"
+            ) &
+
+            ((running++))
+            if (( running >= MAX_PARALLEL )); then
+              wait
+              running=0
+            fi
+          done
+
+        done
       done
     done
   done

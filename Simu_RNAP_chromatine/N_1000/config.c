@@ -50,7 +50,7 @@ Config parse_config(int argc, char *argv[])
     cfg.K               = 10.0;
     cfg.K_rnap          = 10.0;
     cfg.K_bend          = 0.0;
-    cfg.Delta           = 1e-2;
+    cfg.Delta           = 1e-4;
     cfg.epsilon         = 0.0024;
     cfg.epsilon_rnap    = 0.0024;
     cfg.sigma           = 1.1*cfg.a;
@@ -66,6 +66,8 @@ Config parse_config(int argc, char *argv[])
     cfg.r_conf = 10000;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
+
+    cfg.gamma_fric = 5; 
 
     print_header("Paramètres par défaut");
 
@@ -156,6 +158,8 @@ Config parse_config(int argc, char *argv[])
         printf("T_entree_derniere_rnap = %d\n", T_entree_derniere);
         printf("T_train = %d\n", T_train);
         printf("T_total = %d\n", cfg.T);
+
+        
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.T =  k * N_rec;

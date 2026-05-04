@@ -22,6 +22,8 @@ typedef struct {
     int Nm;
     double r_sphere; 
 
+    double gamma_fric; // coefficient de friction (défaut = 1)
+
     // Confinement sphère
     double r_conf;
     double epsilon_conf; 

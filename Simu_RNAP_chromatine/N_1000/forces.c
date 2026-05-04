@@ -420,18 +420,19 @@ void accumulate_lj_rnap_rnap(const Config *cfg,
  * ================================================================ */
 void euler_maruyama_update(double **R, double (*F)[3], int N,
                            double Delta, int temperature,
-                           int attache, int plan)
+                           int attache, int plan, double gamma_fric)
 {
-    const double sigma_th = temperature ? sqrt(2.0 * Delta) : 0.0;
+    
+    const double sigma_th = temperature ? sqrt(2.0 * (Delta / gamma_fric)) : 0.0;
 
     for (int i = 0; i < N; i++) {
 
         if (attache == 1 && (i == 0 || i == N-1))
             continue;
 
-        R[i][0] += Delta * F[i][0];
-        R[i][1] += Delta * F[i][1];
-        R[i][2] += Delta * F[i][2];
+        R[i][0] += (Delta / gamma_fric) * F[i][0];
+        R[i][1] += (Delta / gamma_fric) * F[i][1];
+        R[i][2] += (Delta / gamma_fric) * F[i][2];
 
         if (temperature) {
             R[i][0] += sigma_th * randn();
@@ -449,14 +450,14 @@ void euler_maruyama_update(double **R, double (*F)[3], int N,
  * Mise à jour Euler-Maruyama — RNAP (tableau plat)
  * ================================================================ */
 void euler_maruyama_update_flat(double **R_rnap, double (*F)[3], int nsub,
-                                double Delta, int temperature)
+                                double Delta, int temperature, double gamma_fric)
 {
-    const double sigma_th = temperature ? sqrt(2.0 * Delta) : 0.0;
+    const double sigma_th = temperature ? sqrt(2.0 * (Delta / gamma_fric)) : 0.0;
 
     for (int s = 0; s < nsub; s++) {
-        R_rnap[s][0] += Delta * F[s][0];
-        R_rnap[s][1] += Delta * F[s][1];
-        R_rnap[s][2] += Delta * F[s][2];
+        R_rnap[s][0] += (Delta / gamma_fric) * F[s][0];
+        R_rnap[s][1] += (Delta / gamma_fric) * F[s][1];
+        R_rnap[s][2] += (Delta / gamma_fric) * F[s][2];
 
         if (temperature) {
             R_rnap[s][0] += sigma_th * randn();

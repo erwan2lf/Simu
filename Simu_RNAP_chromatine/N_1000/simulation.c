@@ -897,7 +897,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                 // ── Mise à jour Euler-Maruyama RNAP ─────────────────────────────
                 euler_maruyama_update_flat(sv->R_rnap[rnap], sv->F_rnap,
                                         cfg->rnap_subunits, cfg->Delta,
-                                        cfg->temperature);
+                                        cfg->temperature, cfg->gamma_fric);
 
                 // ── Logique de sortie ───────────────────────────────────────────
                 if (1 - sv->avancement_transcription[rnap] < 1e-7) {
@@ -996,7 +996,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         // Mise à jour des positions (Euler Maruyama)
         // --------------------------------------------------------------
         euler_maruyama_update(sv->R, sv->F_chrom, cfg->N, cfg->Delta,
-            cfg->temperature, cfg->attache, cfg->plan);
+            cfg->temperature, cfg->attache, cfg->plan, cfg->gamma_fric);
         
         // --------------------------------------------------------------
         // Compteur de grands déplacements

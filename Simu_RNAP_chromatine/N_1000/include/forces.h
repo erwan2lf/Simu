@@ -125,9 +125,9 @@ void accumulate_lj_rnap_rnap(const Config *cfg,
  * - plan   == 1 : réflexion si R[i][2] < 0 */
 void euler_maruyama_update(double **R, double (*F)[3], int N,
                            double Delta, int temperature,
-                           int attache, int plan);
+                           int attache, int plan, double gamma_fric);
 
 void euler_maruyama_update_flat(double **R_rnap, double (*F)[3], int nsub,
-                                double Delta, int temperature);
+                                double Delta, int temperature, double gamma_fric);
 
 #endif /* FORCES_H */

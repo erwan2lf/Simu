@@ -18,9 +18,9 @@ Config parse_config(int argc, char *argv[])
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    if (argc < 5)
+    if (argc < 7)
     {
-        fprintf(stderr, "Usage : %s nb_rnap vitesse_rnap seed\n", argv[0]); // Vérification du bon nombre d'arguments
+        fprintf(stderr, "Usage : %s nb_rnap vitesse_rnap seed Delta gamma_fric\n", argv[0]); // Vérification du bon nombre d'arguments
         exit(1);
     }
 
@@ -28,6 +28,8 @@ Config parse_config(int argc, char *argv[])
     cfg.vitesse_rnap    = atof(argv[2]); 
     cfg.K_transpt       = atof(argv[3]); 
     cfg.seed            = strtoul(argv[4], NULL, 10);
+    cfg.Delta           = atof(argv[5]);
+    cfg.gamma_fric      = atof(argv[6]);
 
     // print_header("Lecture des arguments (définis dans .bash)");
 
@@ -50,7 +52,6 @@ Config parse_config(int argc, char *argv[])
     cfg.K               = 10.0;
     cfg.K_rnap          = 10.0;
     cfg.K_bend          = 0.0;
-    cfg.Delta           = 1e-4;
     cfg.epsilon         = 0.0024;
     cfg.epsilon_rnap    = 0.0024;
     cfg.sigma           = 1.1*cfg.a;
@@ -66,8 +67,6 @@ Config parse_config(int argc, char *argv[])
     cfg.r_conf = 10000;
     cfg.epsilon_conf = 0.0024; 
     cfg.sigma_conf = cfg.a;
-
-    cfg.gamma_fric = 5; 
 
     print_header("Paramètres par défaut");
 

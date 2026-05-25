@@ -188,7 +188,7 @@ void accumulate_diagonal_forces(double **R_rnap, double (*F_rnap)[3],
 
         double r    = sqrt(r2);
         // double coef = 2.0 * K_rnap * (1.0 - l0 / r);
-        double coef = 2.0 * K_rnap * (r - 1.0) / r;
+        double coef = 2.0 * K_rnap * (r - l0) / r;
 
         F_rnap[i][0] += coef * dx;
         F_rnap[i][1] += coef * dy;
@@ -264,6 +264,71 @@ void accumulate_bond_rnap_chrom(const Config *cfg,
     }
 }
 
+
+// void accumulate_bond_rnap_chrom(const Config *cfg,
+//                                 double **R,
+//                                 double **R_rnap,
+//                                 double (*F_chrom)[3],
+//                                 double (*F_rnap)[3],
+//                                 int mono,
+//                                 double dx_avancement)   /* remplace "avancement" */
+// {
+//     const int    NB_SUB    = cfg->rnap_subunits;
+//     const double K_transpt = cfg->K_transpt;
+//     const double a_transpt = cfg->a_transpt;
+//     const double a         = cfg->a;               /* longueur d'un monomère */
+//     const double eps       = 1e-12;
+
+//     if (mono < 0 || mono >= cfg->N - 1) return;
+
+//     int p  = mono;
+//     int p1 = mono + 1;
+
+//     /* longueurs à vide : identiques à ton ancien code */
+//     double dx_suivant      = a - dx_avancement;
+//     double a_nucl_transcrit = sqrt(a_transpt*a_transpt + dx_avancement*dx_avancement);
+//     double a_nucl_suivant   = sqrt(a_transpt*a_transpt + dx_suivant*dx_suivant);
+
+//     for (int sub = 0; sub < NB_SUB; sub++) {
+
+//         /* ── lien vers chrom[p] ── */
+//         double d0x = R[p][0] - R_rnap[sub][0];
+//         double d0y = R[p][1] - R_rnap[sub][1];
+//         double d0z = R[p][2] - R_rnap[sub][2];
+//         double dist0 = sqrt(d0x*d0x + d0y*d0y + d0z*d0z);
+//         if (dist0 < eps) dist0 = eps;
+
+//         double f0 = K_transpt * (dist0 - a_nucl_transcrit) / dist0;
+//         double F0x = f0 * d0x,  F0y = f0 * d0y,  F0z = f0 * d0z;
+
+//         /* ── lien vers chrom[p+1] ── */
+//         double d1x = R[p1][0] - R_rnap[sub][0];
+//         double d1y = R[p1][1] - R_rnap[sub][1];
+//         double d1z = R[p1][2] - R_rnap[sub][2];
+//         double dist1 = sqrt(d1x*d1x + d1y*d1y + d1z*d1z);
+//         if (dist1 < eps) dist1 = eps;
+
+//         double f1 = K_transpt * (dist1 - a_nucl_suivant) / dist1;
+//         double F1x = f1 * d1x,  F1y = f1 * d1y,  F1z = f1 * d1z;
+
+//         /* ── accumulation (Newton) ── */
+//         F_rnap[sub][0] += F0x + F1x;
+//         F_rnap[sub][1] += F0y + F1y;
+//         F_rnap[sub][2] += F0z + F1z;
+
+//         F_chrom[p][0]  -= F0x;
+//         F_chrom[p][1]  -= F0y;
+//         F_chrom[p][2]  -= F0z;
+
+//         F_chrom[p1][0] -= F1x;
+//         F_chrom[p1][1] -= F1y;
+//         F_chrom[p1][2] -= F1z;
+//     }
+// }
+
+
+
+
 /* ================================================================
  * RNAP ↔ CHROMATINE — LJ répulsif (via neighbor list)
  * ================================================================ */
@@ -330,13 +395,13 @@ void accumulate_lj_rnap_rnap(const Config *cfg,
 {
     const int    nsub       = cfg->rnap_subunits;
     const double fmax_inter = 1000.0;
-    const double fmax_intra = 300.0;
+    const double fmax_intra = 1000.0;
 
-    const double c12_inter = 48.0 * epsilon * sigma12;
-    const double c6_inter  = 24.0 * epsilon * sigma6;
+    const double c12_inter = 100 * 48.0 * epsilon * sigma12;
+    const double c6_inter  = 0 * 24.0 * epsilon * sigma6;
 
-    const double c12_intra = 4.0 * 12.0 * 1.5 * epsilon * sigma12;
-    const double c6_intra  = 4.0 *  6.0 * 1.0 * epsilon * sigma6;
+    const double c12_intra = 100 * 4.0 * 12.0 * 1.5 * epsilon * sigma12;
+    const double c6_intra  = 0 * 4.0 *  6.0 * 1.0 * epsilon * sigma6;
 
     for (int ri = 0; ri < nb_rnap; ri++) {
         if (l_rnap[ri] < 0) continue;

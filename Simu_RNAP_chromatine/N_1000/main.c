@@ -11,7 +11,7 @@
 
 
 #define MAX_RNAP 50
-#define MAX_RNAP_SUBUNITS 8 
+#define MAX_RNAP_SUBUNITS 1
 #define DIM 3
 
 #ifdef CLUSTER
@@ -120,8 +120,6 @@ int main(int argc, char*argv[])
         100000   // n_lags = 10^5
         );
         
-
-    
     cleanup_sim_vars(&sv, &cfg);
     close_simulation_files(&cfg, &f);
     FILE *fin = fopen(".FINISHED", "w");

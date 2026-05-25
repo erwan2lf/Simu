@@ -41,6 +41,7 @@ typedef struct {
     double epsilon_rnap; // Potentiel de LJ RNAP
     double rayon_ecrantage_LJ_chrom; 
     double rayon_ecrantage_LJ_rnap; 
+    double rayon_ecrantage_LJ_transpt;
     int ecart_train; // Nombre de bille entre deux rnap
     int attente_train; 
     int debut_segment; // Début du segment transcrit
@@ -52,9 +53,9 @@ typedef struct {
     double sigma6_rnap; 
     double sigma12_rnap; 
 
-    double sigma_rnap2; 
-    double sigma6_rnap2; 
-    double sigma12_rnap2;
+    double sigma_transpt; 
+    double sigma6_transpt; 
+    double sigma12_transpt;
 
     double dx_avancement_rnap;
 

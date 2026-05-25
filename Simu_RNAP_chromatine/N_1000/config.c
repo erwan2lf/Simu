@@ -18,7 +18,7 @@ Config parse_config(int argc, char *argv[])
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    if (argc < 7)
+    if (argc < 8)
     {
         fprintf(stderr, "Usage : %s nb_rnap vitesse_rnap seed Delta gamma_fric\n", argv[0]); // Vérification du bon nombre d'arguments
         exit(1);
@@ -30,6 +30,7 @@ Config parse_config(int argc, char *argv[])
     cfg.seed            = strtoul(argv[4], NULL, 10);
     cfg.Delta           = atof(argv[5]);
     cfg.gamma_fric      = atof(argv[6]);
+    cfg.r_conf          = atof(argv[7]);
 
     // print_header("Lecture des arguments (définis dans .bash)");
 
@@ -54,14 +55,17 @@ Config parse_config(int argc, char *argv[])
     cfg.K_bend          = 0.0;
     cfg.epsilon         = 0.0024;
     cfg.epsilon_rnap    = 0.0024;
-    cfg.sigma           = 1.1*cfg.a;
+
+    cfg.sigma           = cfg.a / 1.112; // a / 2^(1/6)
     cfg.sigma6          = pow(cfg.sigma,6);
     cfg.sigma12         = pow(cfg.sigma,12);
+
     cfg.debut_segment   = 300;
     cfg.fin_segment     = 400;
     cfg.rnap_subunits   = 8;
-    cfg.rayon_ecrantage_LJ_chrom = 1.0;
-    cfg.rayon_ecrantage_LJ_rnap  = 1.0;
+    cfg.rayon_ecrantage_LJ_chrom = 2.5 * cfg.sigma;
+    cfg.rayon_ecrantage_LJ_rnap  = 1.122 * cfg.sigma_rnap;
+    cfg.rayon_ecrantage_LJ_transpt  = 2.5 * cfg.sigma_transpt;
     cfg.ecart_train     = 2;
     cfg.r_sphere = 0;
     cfg.r_conf = 10000;
@@ -96,7 +100,7 @@ Config parse_config(int argc, char *argv[])
 
 
     cfg.attache = 0; // attache
-    cfg.confinement = 0; // confinement
+    cfg.confinement = 1; // confinement
     cfg.plan = 0; // plan
     cfg.bending = 0; // bending
     cfg.critere = 1; // critere
@@ -120,7 +124,6 @@ Config parse_config(int argc, char *argv[])
         cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
         // cfg.T = 100000;
         cfg.T_eq = cfg.T/10;
-
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.periode_enregistrement = k;  // periode_enregistrement
         printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
@@ -182,17 +185,6 @@ Config parse_config(int argc, char *argv[])
     {
         cfg.vitesse_rnap = 0;
     }
-    
-    // cfg.periode_enregistrement = k;  // periode_enregistrement
-    // printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
-    // cfg.periode_msd = k;   // msd
-    // cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
-    // cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
-    
-   
-    // cfg.periode_centre_de_masse = cfg.T;       // cdm
-    // cfg.periode_voisin = cfg.T;       // voisins
-    // cfg.periode_force = cfg.T;       // force
 
     cfg.T_enregistrement = cfg.T / cfg.periode_enregistrement;
     printf("T_enregistrement = %d \n", cfg.T_enregistrement);
@@ -208,14 +200,15 @@ Config parse_config(int argc, char *argv[])
     // --- RNAP
     cfg.a_rnap              = cfg.alpha; 
     cfg.a_transpt           = (cfg.alpha + 1)/2;
-    cfg.mono_transcrpt      = 10; 
-    cfg.sigma_rnap          = 1.2*(cfg.alpha + 1)/2; 
+    cfg.mono_transcrpt      = 10;
+
+    cfg.sigma_rnap          = 2 * cfg.alpha / 1.112; 
     cfg.sigma6_rnap         = pow(cfg.sigma_rnap, 6);
     cfg.sigma12_rnap        = pow(cfg.sigma_rnap, 12);
 
-    cfg.sigma_rnap2         = cfg.alpha; 
-    cfg.sigma6_rnap2        = pow(cfg.sigma_rnap2, 6);
-    cfg.sigma12_rnap2       = pow(cfg.sigma_rnap2, 12);
+    cfg.sigma_transpt         = ((cfg.alpha + 1) / 2) / 1.112; 
+    cfg.sigma6_transpt        = pow(cfg.sigma_transpt, 6);
+    cfg.sigma12_transpt       = pow(cfg.sigma_transpt, 12);
 
     cfg.dx_avancement_rnap  = cfg.vitesse_rnap * cfg.Delta; 
 

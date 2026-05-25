@@ -21,7 +21,7 @@
 #define SCALE_POS 1000.0
 #define PI 3.14159265358979323846
 #define MAX_RNAP 50
-#define MAX_RNAP_SUBUNITS 8 
+#define MAX_RNAP_SUBUNITS 1
 #define DIM 3
 
 

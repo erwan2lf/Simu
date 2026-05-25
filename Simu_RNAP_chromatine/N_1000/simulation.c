@@ -15,7 +15,7 @@
 #include <string.h>  // memset()
 
 #define MAX_RNAP 50
-#define MAX_RNAP_SUBUNITS 8 
+#define MAX_RNAP_SUBUNITS 1
 #define DIM 3
 
 #define DEBUG_TIMING 0
@@ -831,7 +831,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
                                         neighbor_lists_rnap,
                                         rnap,
                                         cfg->epsilon_rnap,
-                                        cfg->sigma6_rnap, cfg->sigma12_rnap,
+                                        cfg->sigma6_transpt, cfg->sigma12_transpt,
                                         cfg->rayon_ecrantage_LJ_rnap * cfg->rayon_ecrantage_LJ_rnap
                                         );
                 TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP]);
@@ -880,27 +880,7 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
         accumulate_lj_forces(sv->R, sv->F_chrom, neighbor_lists, cfg->N,
                     0.001 * cfg->epsilon, cfg->sigma6, cfg->sigma12,
                     cfg->attache);
-        // // lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon,
-        // //                      cfg->sigma6, cfg->sigma12, cfg->Delta,
-        // //                      cfg->attache, cfg->periode_force,
-        // //                      f->fichier_force_LJ, t);
         TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ]);
-
-        // TIMER_START(sec_w0, sec_c0);
-        // lennard_jones_forces_rnap(
-        //     cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
-        //     cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
-        //     cfg->sigma6_rnap2, cfg->sigma12_rnap2,
-        //     cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
-        //     f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
-        // TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP]);
-
-        // TIMER_START(sec_w0, sec_c0);
-        // lennard_jones_forces_rnap_rnap(
-        //     cfg, sv->R_rnap, sv->nb_rnap, cfg->epsilon, cfg->sigma6_rnap,
-        //     cfg->sigma12_rnap, cfg->rayon_ecrantage_LJ_rnap, cfg->Delta,
-        //     sv->l_rnap);
-        // TIMER_END(sec_w0, sec_w1, sec_c0, sec_c1, timers[TM_LJ_RNAP_RNAP]);
 
         // --------------------------------------------------------------
         // Confinement
@@ -922,26 +902,8 @@ void calcul(SimVars *sv, const Config *cfg, const Files *f,
             R_temp[i][0] = sv->R[i][0];
             R_temp[i][1] = sv->R[i][1];
             R_temp[i][2] = sv->R[i][2];
-            // printf("R_temp = %lf %lf %lf\n", R_temp[i][0], R_temp[i][1], R_temp[i][2]);
         }
-        // R_temp = sv->R;
 
-        // // Juste avant euler_maruyama_update
-        // for (int i = 0; i < cfg->N; i++) {
-        //     if (isnan(sv->R[i][0]) || isnan(sv->R[i][1]) || isnan(sv->R[i][2])) {
-        //         printf("❌ NaN détecté sur R[%d] à t=%d\n", i, t);
-        //         exit(1);
-        //     }
-        // }
-        // for (int rnap = 0; rnap < cfg->nb_rnap_initial; rnap++) {
-        //     if (sv->l_rnap[rnap] < 0) continue;
-        //     for (int s = 0; s < cfg->rnap_subunits; s++) {
-        //         if (isnan(sv->R_rnap[rnap][s][0])) {
-        //             printf("❌ NaN détecté sur R_rnap[%d][%d] à t=%d\n", rnap, s, t);
-        //             exit(1);
-        //         }
-        //     }
-        // }
         // --------------------------------------------------------------
         // Mise à jour des positions (Euler Maruyama)
         // --------------------------------------------------------------
@@ -1054,13 +1016,7 @@ void f_equilibriate(SimVars *sv, const Config *cfg, const Files *f, NeighborList
 
         sv->R = sv->R_new;
         
-        lennard_jones_forces(sv->R, neighbor_lists, cfg->N, cfg->epsilon, cfg->sigma6, cfg->sigma12, cfg->Delta, cfg->attache, cfg->periode_force, f->fichier_force_LJ, t);
-        lennard_jones_forces_rnap(
-            cfg, sv->R_rnap, sv->nb_rnap, sv->R, cfg->N, neighbor_lists_rnap,
-            cfg->epsilon_rnap, cfg->sigma6_rnap, cfg->sigma12_rnap,
-            cfg->sigma6_rnap2, cfg->sigma12_rnap2,
-            cfg->rayon_ecrantage_LJ_rnap, cfg->Delta, t, f->test, cfg->T,
-            f->fichier_force_rnap_LJ, cfg->periode_force, sv->l_rnap);
+
 
 
         end = clock();  

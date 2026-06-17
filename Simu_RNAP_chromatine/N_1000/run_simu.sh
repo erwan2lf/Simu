@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=n50v001
+#SBATCH --job-name=n0conf
 #SBATCH --output=slurm_simu_rnap_%j.out
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=50
@@ -79,7 +79,7 @@ vitesse_rnap_values=(0.1)
 Ktranspt_values=(2)
 Delta_values=(1e-4)
 gamma_fric_values=(1)
-r_conf_values=(15.88 13.8 11.5 9.8 8.5 7.6) 
+r_conf_values=(1000 15.88 13.6 11.6) 
 seeds=({1..50})
 
 # =============================

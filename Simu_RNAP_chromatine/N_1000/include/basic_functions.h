@@ -50,7 +50,7 @@ void realft(double* vec_double, double* data, int Isign, int data_size);
 void save_gyration(double* gyration_radius, int nbr_simu, int T_centre_de_masse, int periode_centre_de_masse);
 void save_centre_de_masse(double** R_centre_de_masse, int N, int T_centre_de_masse, int nbr_simu, int periode_centre_de_masse);
 void calculate_gyration_radius(double** R_centre_de_masse, double* gyration_radius, double** R, int N, int T_centre_de_masse, double** stock_cdm);
-void creation_polymere_aleatoire(int N, double a, double **R);
+void creation_polymere_aleatoire(int N, double a, double r_conf, double **R);
 void calculate_msd_parallel(double ****R, double ***stock_msd, int Tp, int Nm, int nbr_simu);
 void calculate_msd_serial(double ****R, double ***stock_msd, int Tp, int Nm, int nbr_simu);
 #endif // MES_FONCTIONS_H

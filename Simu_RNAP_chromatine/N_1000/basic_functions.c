@@ -899,15 +899,48 @@ void save_gyration(double* gyration_radius, int nbr_simu, int T_centre_de_masse,
     }
 }
 
-void creation_polymere_aleatoire(int N, double a, double **R){
-    R[0][0]= genrand_real2() * 100;
-    R[0][1]= genrand_real2() * 100;
-    R[0][2]= genrand_real2() * 100;
-    for(int i = 1; i < N; i++){
-        double phi = genrand_real2() * 2 * PI;
-        double theta = genrand_real2() * PI;
-        R[i][0] = R[i-1][0] + a * sin(theta) * cos(phi);
-        R[i][1] = R[i-1][1] + a * sin(theta) * sin(phi);
-        R[i][2] = R[i-1][2] + a * cos(theta);
+void creation_polymere_aleatoire(int N, double a, double r_conf, double **R)
+{
+    double r_init = (r_conf > 0) ? r_conf * 0.5 : 50.0;
+
+    // Position initiale au centre de la sphère (± r_init/2)
+    R[0][0] = (genrand_real2() - 0.5) * r_init;
+    R[0][1] = (genrand_real2() - 0.5) * r_init;
+    R[0][2] = (genrand_real2() - 0.5) * r_init;
+
+    for (int i = 1; i < N; i++) {
+        int max_tries = 1000;
+        int ok = 0;
+
+        for (int t = 0; t < max_tries; t++) {
+            double phi   = genrand_real2() * 2 * PI;
+            double theta = genrand_real2() * PI;
+
+            double x = R[i-1][0] + a * sin(theta) * cos(phi);
+            double y = R[i-1][1] + a * sin(theta) * sin(phi);
+            double z = R[i-1][2] + a * cos(theta);
+
+            // Accepter seulement si dans la sphère
+            if (r_conf > 0) {
+                double d2 = x*x + y*y + z*z;
+                if (d2 > r_conf * r_conf) continue;
+            }
+
+            R[i][0] = x;
+            R[i][1] = y;
+            R[i][2] = z;
+            ok = 1;
+            break;
+        }
+
+        // Si pas de solution trouvée, on revient vers le centre
+        if (!ok) {
+            double phi   = genrand_real2() * 2 * PI;
+            double theta = genrand_real2() * PI;
+            double r_back = r_conf * 0.3;
+            R[i][0] = r_back * sin(theta) * cos(phi);
+            R[i][1] = r_back * sin(theta) * sin(phi);
+            R[i][2] = r_back * cos(theta);
+        }
     }
 }

@@ -13,7 +13,6 @@ void creation_arn_polymerase(int N_arn, double a, double rayon_arn, double** R_a
 void creation_polymere_droit(int N, double a, double ecart, double** R);
 void creation_fractal_globule(int N, double a, double ecart, double** R);
 void creation_structure_knot(int N, double a, double **R);
-void creation_polymere_aleatoire(int N, double a, double **R);
 void creation_particules_gaussiennes_Ree_sur2(
     int N,
     double **R      // tableau [N][3]

@@ -362,27 +362,62 @@ void retirer_rnap(SimVars *sv, const Config *cfg,
 
     sv->avancement_transcription[rnap] = 0.0;
 
-    // --- Si la RNAP est encore dans le segment actif, on ne la retire pas encore
+    // --- Si la RNAP est encore dans le segment actif, on ne la retire pas encore ---
     if (sv->positions_bille_rnap[rnap] < cfg->fin_segment)
         return;
-    for (int i = 0; i < cfg->nb_rnap_initial; i++)
-        {
-            printf("Retire : l_rnap[%d]=%d\n",i,sv->l_rnap[i]);
-        }
 
-    // --- Marque la RNAP comme inactive ---
+    for (int i = 0; i < cfg->nb_rnap_initial; i++)
+    {
+        printf("Retire : l_rnap[%d]=%d\n", i, sv->l_rnap[i]);
+    }
+
+    // =========================================================
+    // 🔁 GESTION DES PASSAGES MULTIPLES
+    // =========================================================
+    if (sv->l_rnap[rnap] < cfg->nb_passages)
+    {
+        // Pas encore fini tous les passages → repartir au début
+        sv->l_rnap[rnap]++;  // 1→2, 2→3, etc.
+        sv->positions_bille_rnap[rnap] = cfg->debut_segment;
+        sv->avancement_transcription[rnap] = 0.0;
+
+        // Replacer physiquement la RNAP au promoteur
+        creation_1_rnap_erwan(
+            cfg, sv->R, rnap, sv->positions_bille_rnap,
+            sv->R_rnap, cfg->N, cfg->rnap_subunits,
+            cfg->debut_segment, cfg->fin_segment,
+            cfg->nb_rnap_initial
+        );
+
+        printf(C_CYAN "\n=== [t=%d] RNAP %d repart pour le passage %d/%d ===\n" C_RESET,
+               t, rnap, sv->l_rnap[rnap], cfg->nb_passages);
+
+        // Reconstruire les neighbor lists avec la nouvelle position
+        build_neighbor_list(sv->R, neighborlist, cfg->N, 2, 0);
+        NeighborList_rnap **lists = *p_lists;
+        build_neighbor_list_rnap_chrom(
+            cfg, sv->R_rnap, MAX_RNAP, sv->R,
+            cfg->N, lists, cfg->rayon_ecrantage_LJ_chrom, t
+        );
+
+        return;  // ← on s'arrête ici, la RNAP continue à vivre
+    }
+
+    // =========================================================
+    // 🚪 SORTIE DÉFINITIVE (tous les passages effectués)
+    // =========================================================
     sv->l_rnap[rnap] = -2;
     sv->sortie = 1;
 
     if (sv->nb_rnap > 0)
         sv->nb_rnap--;
 
-    printf(C_MAGENTA "\n=== [t=%d] RNAP %d retirée ===\n" C_RESET, t, rnap);
+    printf(C_MAGENTA "\n=== [t=%d] RNAP %d retirée définitivement (après %d passages) ===\n" C_RESET,
+           t, rnap, cfg->nb_passages);
     printf(C_MAGENTA "   → nb_rnap restant = %d\n" C_RESET, sv->nb_rnap);
 
     // --- Nettoyage complet des coordonnées ---
-    // ⚠️ Mettre à (0,0,0) *et* loin du domaine pour éviter les interactions
-    const double COORD_INACTIVE = -1e6; // sécurité pour sortir de la simulation
+    const double COORD_INACTIVE = -1e6;
 
     for (int sub = 0; sub < cfg->rnap_subunits; ++sub) {
         for (int d = 0; d < 3; ++d) {
@@ -400,10 +435,9 @@ void retirer_rnap(SimVars *sv, const Config *cfg,
     // --- Reconstruction des neighbor lists ---
     build_neighbor_list(sv->R, neighborlist, cfg->N, 2, 0);
 
-    // Comptage des RNAP encore actives
     int nb_actives = 0;
     for (int i = 0; i < MAX_RNAP; ++i)
-        if (sv->l_rnap[i] == 1)
+        if (sv->l_rnap[i] >= 1)
             nb_actives++;
 
     NeighborList_rnap **lists = *p_lists;
@@ -423,7 +457,7 @@ void retirer_rnap(SimVars *sv, const Config *cfg,
                 sv->nb_rnap, nb_actives);
     }
 
-    // --- Affichage d’état ---
+    // --- Affichage d'état ---
     printf("   État RNAP : ");
     for (int i = 0; i < MAX_RNAP; i++)
         printf("%d", sv->l_rnap[i]);

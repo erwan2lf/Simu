@@ -59,6 +59,8 @@ typedef struct {
 
     double dx_avancement_rnap;
 
+    int nb_passages;
+
     // Temps
     int T; // Temps total de simu
     int T_eq; // Temps de simu sans RNAP

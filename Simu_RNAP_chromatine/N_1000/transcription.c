@@ -17,7 +17,7 @@
 #include "file.h"
 
 
-#define BOX_SIZE 1e3
+#define BOX_SIZE 1e2
 #define SCALE_POS 1000.0
 #define PI 3.14159265358979323846
 #define MAX_RNAP 50
@@ -169,14 +169,52 @@ void enregistrement_RNAP(FILE *fichier,
     // === Nombre total constant ===
     int total_atoms = N + nb_rnap_initial * (nb_subunits + 2);
 
+    // === Calcul dynamique des bornes de la boîte ===
+    double xmin = R[0][0], xmax = R[0][0];
+    double ymin = R[0][1], ymax = R[0][1];
+    double zmin = R[0][2], zmax = R[0][2];
+
+    for (int i = 0; i < N; i++)
+    {
+        if (R[i][0] < xmin) xmin = R[i][0];
+        if (R[i][0] > xmax) xmax = R[i][0];
+        if (R[i][1] < ymin) ymin = R[i][1];
+        if (R[i][1] > ymax) ymax = R[i][1];
+        if (R[i][2] < zmin) zmin = R[i][2];
+        if (R[i][2] > zmax) zmax = R[i][2];
+    }
+
+    // Prendre en compte les RNAP actives aussi
+    for (int rnap = 0; rnap < nb_rnap_initial; rnap++)
+    {
+        if (l_rnap[rnap] < 1) continue;
+        for (int s = 0; s < nb_subunits; s++)
+        {
+            if (R_rnap[rnap][s][0] < xmin) xmin = R_rnap[rnap][s][0];
+            if (R_rnap[rnap][s][0] > xmax) xmax = R_rnap[rnap][s][0];
+            if (R_rnap[rnap][s][1] < ymin) ymin = R_rnap[rnap][s][1];
+            if (R_rnap[rnap][s][1] > ymax) ymax = R_rnap[rnap][s][1];
+            if (R_rnap[rnap][s][2] < zmin) zmin = R_rnap[rnap][s][2];
+            if (R_rnap[rnap][s][2] > zmax) zmax = R_rnap[rnap][s][2];
+        }
+    }
+
+    // Ajouter une marge de 10%
+    double margin_x = (xmax - xmin) * 0.1 + 1.0;
+    double margin_y = (ymax - ymin) * 0.1 + 1.0;
+    double margin_z = (zmax - zmin) * 0.1 + 1.0;
+    xmin -= margin_x; xmax += margin_x;
+    ymin -= margin_y; ymax += margin_y;
+    zmin -= margin_z; zmax += margin_z;
+
     // === En-têtes LAMMPS ===
     fprintf(fichier, "ITEM: TIMESTEP\n%d\n", t);
     fprintf(fichier, "ITEM: NUMBER OF ATOMS\n%d\n", total_atoms);
-    fprintf(fichier, "ITEM: BOX BOUNDS ss ss ss\n");
-    fprintf(fichier, "%lf %lf\n", -BOX_SIZE, BOX_SIZE);
-    fprintf(fichier, "%lf %lf\n", -BOX_SIZE, BOX_SIZE);
-    fprintf(fichier, "%lf %lf\n", -BOX_SIZE, BOX_SIZE);
-    fprintf(fichier, "ITEM: ATOMS id type xs ys zs\n");
+    fprintf(fichier, "ITEM: BOX BOUNDS ff ff ff\n");  // ff = bornes absolues
+    fprintf(fichier, "%lf %lf\n", xmin, xmax);
+    fprintf(fichier, "%lf %lf\n", ymin, ymax);
+    fprintf(fichier, "%lf %lf\n", zmin, zmax);
+    fprintf(fichier, "ITEM: ATOMS id type x y z is_rnap\n");
 
 
     // === 1️⃣ Monomères de la chaîne ===
@@ -199,11 +237,9 @@ void enregistrement_RNAP(FILE *fichier,
         // --- RNAP active ---
         if (state >= 1)
         {
-            // Monomères liés à la RNAP
             print_position(fichier, count++, 2, R[mono_pos][0], R[mono_pos][1], R[mono_pos][2], 0);
             print_position(fichier, count++, 2, R[mono_pos + 1][0], R[mono_pos + 1][1], R[mono_pos + 1][2], 0);
 
-            // Sous-unités
             for (int s = 0; s < nb_subunits; s++)
                 print_position(fichier, count++, type,
                                R_rnap[rnap][s][0],
@@ -228,7 +264,7 @@ void enregistrement_RNAP(FILE *fichier,
         type++;
     }
 
-    fflush(fichier); // sécurité
+    fflush(fichier);
 }
 
 

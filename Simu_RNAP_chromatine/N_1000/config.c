@@ -62,6 +62,7 @@ Config parse_config(int argc, char *argv[])
 
     cfg.debut_segment   = 300;
     cfg.fin_segment     = 400;
+    cfg.nb_passages     = 2;
     cfg.rnap_subunits   = 8;
     cfg.rayon_ecrantage_LJ_chrom = 2.5 * cfg.sigma;
     cfg.rayon_ecrantage_LJ_rnap  = 1.122 * cfg.sigma_rnap;
@@ -138,10 +139,13 @@ Config parse_config(int argc, char *argv[])
     }
     else
     {
-        // Temps pour que la dernière RNAP finisse
-        int T_transcription = (int)round(
+        // Temps pour qu'une RNAP fasse UN passage
+        int T_transcription_1_passage = (int)round(
             (double)(cfg.fin_segment - cfg.debut_segment) / (cfg.vitesse_rnap * cfg.Delta)
         );
+
+        // Temps total de transcription avec tous les passages
+        int T_transcription = T_transcription_1_passage * cfg.nb_passages;
 
         // Temps d'entrée de la dernière RNAP
         int T_entree_derniere = (int)round(
@@ -152,15 +156,13 @@ Config parse_config(int argc, char *argv[])
         int T_train = T_entree_derniere + T_transcription;
 
         // On veut que T_train = 90% de T_total
-        // donc T_total = T_train / 0.9
         cfg.T = (int)round(T_train / 0.9);
 
-        printf("T_transcription_1_rnap = %d\n", T_transcription);
+        printf("T_transcription_1_passage = %d\n", T_transcription_1_passage);
+        printf("T_transcription_total (%d passages) = %d\n", cfg.nb_passages, T_transcription);
         printf("T_entree_derniere_rnap = %d\n", T_entree_derniere);
         printf("T_train = %d\n", T_train);
         printf("T_total = %d\n", cfg.T);
-
-        
 
         k = (cfg.T + N_rec - 1) / N_rec; 
         cfg.T =  k * N_rec;

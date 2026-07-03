@@ -126,11 +126,7 @@ Config parse_config(int argc, char *argv[])
             (double)(cfg.fin_segment - cfg.debut_segment) / (cfg.vitesse_rnap * cfg.Delta)
         );
         int T_transcription = T_transcription_1_passage * cfg.nb_passages;
-        int T_entree_derniere = (int)round(
-            (double)(cfg.nb_rnap_initial_ref - 1) * cfg.ecart_train / (cfg.vitesse_rnap * cfg.Delta)
-        );
-        int T_train = T_entree_derniere + T_transcription;
-        cfg.T = (int)round(T_train / 0.9);
+        cfg.T = (int)round(T_transcription / 0.9);
 
         printf("T_ctrl (nb_passages=%d) = %d\n", cfg.nb_passages, cfg.T);
 

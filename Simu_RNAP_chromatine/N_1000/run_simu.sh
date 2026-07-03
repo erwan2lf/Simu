@@ -79,7 +79,8 @@ vitesse_rnap_values=(0.1)
 Ktranspt_values=(2)
 Delta_values=(1e-4)
 gamma_fric_values=(1)
-r_conf_values=(1000 15.88 13.6 11.6) 
+r_conf_values=(1000 15.88 13.6 11.6)
+nb_passages_values=(1 2 4)         # ← nouveau
 seeds=({1..50})
 
 # =============================
@@ -93,14 +94,15 @@ run_one_simulation() {
   local seed="$5"
   local Delta="$6"
   local gamma_fric="$7"
-  local r_conf="$8"          # <-- NOUVEAU PARAMÈTRE
+  local r_conf="$8"
+  local nb_passages="$9"           # ← nouveau
 
   cd "$sim_dir" || exit 1
 
-  echo "▶ Simulation : nb_rnap=$nb_rnap | vitesse=$vitesse | K=$Ktranspt | seed=$seed | Delta=$Delta | gamma=$gamma_fric | r_conf=$r_conf"
+  echo "▶ Simulation : nb_rnap=$nb_rnap | vitesse=$vitesse | K=$Ktranspt | seed=$seed | Delta=$Delta | gamma=$gamma_fric | r_conf=$r_conf | nb_passages=$nb_passages"
   echo ">> $(date +"[%H:%M:%S]") Lancement main" | tee -a output.txt
 
-  "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" "$Delta" "$gamma_fric" "$r_conf" \
+  "$SLURM_SUBMIT_DIR/main" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" "$Delta" "$gamma_fric" "$r_conf" "$nb_passages" \
       >> output.txt 2>> error.txt
 
   # --- Vérification trajectoire.bin ---
@@ -137,28 +139,29 @@ for nb_rnap in "${nb_rnap_values[@]}"; do
     for Ktranspt in "${Ktranspt_values[@]}"; do
       for Delta in "${Delta_values[@]}"; do
         for gamma_fric in "${gamma_fric_values[@]}"; do
-          for r_conf in "${r_conf_values[@]}"; do      # <-- NOUVELLE BOUCLE
+          for r_conf in "${r_conf_values[@]}"; do
+            for nb_passages in "${nb_passages_values[@]}"; do   # ← nouveau
 
-            # Dossier incluant Delta, gamma_fric et r_conf
-            k_folder="$nb_rnap_folder/vitesse_${vitesse}/Ktranspt_${Ktranspt}/Delta_${Delta}/gamma_${gamma_fric}/r_conf_${r_conf}"
-            mkdir -p "$k_folder"
+              k_folder="$nb_rnap_folder/vitesse_${vitesse}/Ktranspt_${Ktranspt}/Delta_${Delta}/gamma_${gamma_fric}/r_conf_${r_conf}/nb-passages_${nb_passages}"
+              mkdir -p "$k_folder"
 
-            for seed in "${seeds[@]}"; do
-              sim_dir="$k_folder/simulation_seed_${seed}"
-              mkdir -p "$sim_dir"
+              for seed in "${seeds[@]}"; do
+                sim_dir="$k_folder/simulation_seed_${seed}"
+                mkdir -p "$sim_dir"
 
-              (
-                run_one_simulation "$sim_dir" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" "$Delta" "$gamma_fric" "$r_conf"
-              ) &
+                (
+                  run_one_simulation "$sim_dir" "$nb_rnap" "$vitesse" "$Ktranspt" "$seed" "$Delta" "$gamma_fric" "$r_conf" "$nb_passages"
+                ) &
 
-              ((running++))
-              if (( running >= MAX_PARALLEL )); then
-                wait
-                running=0
-              fi
-            done
+                ((running++))
+                if (( running >= MAX_PARALLEL )); then
+                  wait
+                  running=0
+                fi
+              done
 
-          done                                         # <-- FIN BOUCLE r_conf
+            done   # fin nb_passages
+          done     # fin r_conf
         done
       done
     done

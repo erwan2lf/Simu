@@ -20,7 +20,7 @@ Config parse_config(int argc, char *argv[])
 
     if (argc < 8)
     {
-        fprintf(stderr, "Usage : %s nb_rnap vitesse_rnap seed Delta gamma_fric\n", argv[0]); // Vérification du bon nombre d'arguments
+        fprintf(stderr, "Usage : %s nb_rnap vitesse_rnap seed Delta gamma_fric r_conf nb_passages\n", argv[0]); // Vérification du bon nombre d'arguments
         exit(1);
     }
 
@@ -31,6 +31,7 @@ Config parse_config(int argc, char *argv[])
     cfg.Delta           = atof(argv[5]);
     cfg.gamma_fric      = atof(argv[6]);
     cfg.r_conf          = atof(argv[7]);
+    cfg.nb_passages     = atoi(argv[8]);
 
     // print_header("Lecture des arguments (définis dans .bash)");
 
@@ -62,7 +63,6 @@ Config parse_config(int argc, char *argv[])
 
     cfg.debut_segment   = 300;
     cfg.fin_segment     = 400;
-    cfg.nb_passages     = 2;
     cfg.rnap_subunits   = 8;
     cfg.rayon_ecrantage_LJ_chrom = 2.5 * cfg.sigma;
     cfg.rayon_ecrantage_LJ_rnap  = 1.122 * cfg.sigma_rnap;
@@ -121,21 +121,32 @@ Config parse_config(int argc, char *argv[])
 
     if(cfg.nb_rnap_initial == 0)
     {
-        cfg.T = (int)round(((cfg.fin_segment - cfg.debut_segment) + cfg.ecart_train * (MAX_RNAP)) / (cfg.vitesse_rnap * cfg.Delta) );
-        // cfg.T = 100000;
-        cfg.T_eq = cfg.T/10;
-        k = (cfg.T + N_rec - 1) / N_rec; 
-        cfg.periode_enregistrement = k;  // periode_enregistrement
-        printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
-        cfg.periode_msd = k;   // msd
-        cfg.periode_correlation = (cfg.T + N_rec - 1)/N_rec;   // correlation
-        cfg.periode_endtoend = (cfg.T + N_rec/10 - 1)/(N_rec/10);   // endtoend
+        // Temps équivalent à une simu avec RNAP + nb_passages
+        int T_transcription_1_passage = (int)round(
+            (double)(cfg.fin_segment - cfg.debut_segment) / (cfg.vitesse_rnap * cfg.Delta)
+        );
+        int T_transcription = T_transcription_1_passage * cfg.nb_passages;
+        int T_entree_derniere = (int)round(
+            (double)(cfg.nb_rnap_initial_ref - 1) * cfg.ecart_train / (cfg.vitesse_rnap * cfg.Delta)
+        );
+        int T_train = T_entree_derniere + T_transcription;
+        cfg.T = (int)round(T_train / 0.9);
 
-        cfg.periode_lammps = cfg.T / 10000; 
+        printf("T_ctrl (nb_passages=%d) = %d\n", cfg.nb_passages, cfg.T);
+
+        cfg.T_eq = cfg.T / 10;
+        k = (cfg.T + N_rec - 1) / N_rec;
+        cfg.T = k * N_rec;
+        cfg.periode_enregistrement = k;
+        printf("periode enregistrement = %d \n", cfg.periode_enregistrement);
+        cfg.periode_msd = k;
+        cfg.periode_correlation = (cfg.T + N_rec - 1) / N_rec;
+        cfg.periode_endtoend = (cfg.T + N_rec/10 - 1) / (N_rec/10);
+        cfg.periode_lammps = cfg.T / 1000;
         printf("periode lammps = %d \n", cfg.periode_lammps);
-        cfg.periode_centre_de_masse = cfg.T;       // cdm
-        cfg.periode_voisin = cfg.T;       // voisins
-        cfg.periode_force = cfg.T;       // force
+        cfg.periode_centre_de_masse = cfg.T;
+        cfg.periode_voisin = cfg.T;
+        cfg.periode_force = cfg.T;
     }
     else
     {
